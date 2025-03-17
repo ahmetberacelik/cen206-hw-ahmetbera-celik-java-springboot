@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: legalcase-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: legalcasedb
+      MYSQL_USER: legalcaseuser
+      MYSQL_PASSWORD: legalcasepass
+      MYSQL_ROOT_PASSWORD: rootpassword
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./src/main/resources/db/init-data.sql:/docker-entrypoint-initdb.d/2-init-data.sql
+    networks:
+      - legalcase-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "legalcaseuser", "-plegalcasepass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # phpMyAdmin for Database Management (Optional)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: legalcase-phpmyadmin
+    ports:
+      - "5050:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: rootpassword
+    networks:
+      - legalcase-network
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+  # Legal Case Tracker Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: legalcase-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/legalcasedb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      DB_USER: legalcaseuser
+      DB_PASSWORD: legalcasepass
+    networks:
+      - legalcase-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+# Networks
+networks:
+  legalcase-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  mysql-data:

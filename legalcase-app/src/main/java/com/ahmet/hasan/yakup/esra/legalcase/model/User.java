@@ -1,5 +1,7 @@
 package com.ahmet.hasan.yakup.esra.legalcase.model;
 
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
+
 /**
  * @brief Model class that holds user information.
  * @author Team

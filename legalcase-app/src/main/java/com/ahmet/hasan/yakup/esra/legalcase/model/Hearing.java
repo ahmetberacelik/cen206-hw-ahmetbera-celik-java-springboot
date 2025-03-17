@@ -1,5 +1,7 @@
 package com.ahmet.hasan.yakup.esra.legalcase.model;
 
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.HearingStatus;
+
 import java.time.LocalDateTime;
 
 /**

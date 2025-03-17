@@ -1,5 +1,8 @@
 package com.ahmet.hasan.yakup.esra.legalcase.model;
 
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseType;
+
 import java.util.ArrayList;
 import java.util.List;
 

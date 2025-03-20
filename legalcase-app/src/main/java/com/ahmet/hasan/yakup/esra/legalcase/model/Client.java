@@ -11,7 +11,18 @@ import java.util.List;
 @Getter
 @Setter
 public class Client extends BaseEntity {
+    public Client() {
+        super();
+        this.cases = new ArrayList<>();
+    }
 
+    public Client(Long id, String name, String surname, String email) {
+        super(id);
+        this.name = name;
+        this.surname = surname;
+        this.email = email;
+        this.cases = new ArrayList<>();
+    }
     @Column(nullable = false)
     private String name;
 
@@ -24,7 +35,22 @@ public class Client extends BaseEntity {
     @ManyToMany(mappedBy = "clients")
     private List<Case> cases = new ArrayList<>();
 
-    // Constructors remain the same
+    // Helper metodlar
+    public void addCase(Case cse) {
+        if (!this.cases.contains(cse)) {
+            this.cases.add(cse);
+            if (!cse.getClients().contains(this)) {
+                cse.getClients().add(this);
+            }
+        }
+    }
 
-    // addCase, removeCase methods remain the same
+    public void removeCase(Case cse) {
+        if (this.cases.contains(cse)) {
+            this.cases.remove(cse);
+            if (cse.getClients().contains(this)) {
+                cse.getClients().remove(this);
+            }
+        }
+    }
 }

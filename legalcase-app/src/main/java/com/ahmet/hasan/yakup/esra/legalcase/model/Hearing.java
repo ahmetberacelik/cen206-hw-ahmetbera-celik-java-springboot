@@ -12,6 +12,21 @@ import java.time.LocalDateTime;
 @Setter
 public class Hearing extends BaseEntity {
 
+    // Parametresiz constructor
+    public Hearing() {
+        super();
+        this.status = HearingStatus.SCHEDULED;
+    }
+
+    // Parametreli constructor
+    public Hearing(Long id, Case cse, LocalDateTime hearingDate, String judge) {
+        super(id);
+        this.cse = cse;
+        this.hearingDate = hearingDate;
+        this.judge = judge;
+        this.status = HearingStatus.SCHEDULED;
+    }
+
     @ManyToOne
     @JoinColumn(name = "case_id", nullable = false)
     private Case cse;
@@ -33,8 +48,4 @@ public class Hearing extends BaseEntity {
     // Add notes about the hearing
     @Column(length = 1000)
     private String notes;
-
-    // Constructors remain the same
-
-    // reschedule method remains the same
 }

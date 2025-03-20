@@ -6,7 +6,7 @@ services:
     image: mysql:8.0
     container_name: legalcase-mysql
     ports:
-      - "3306:3306"
+      - "3307:3306"  # Host port 3307'yi container port 3306'ya yönlendirin
     environment:
       MYSQL_DATABASE: legalcasedb
       MYSQL_USER: legalcaseuser

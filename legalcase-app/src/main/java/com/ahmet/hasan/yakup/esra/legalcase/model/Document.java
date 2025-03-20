@@ -10,7 +10,15 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Document extends BaseEntity {
+    public Document() {
+        super();
+    }
 
+    public Document(Long id, String title, DocumentType type) {
+        super(id);
+        this.title = title;
+        this.type = type;
+    }
     @Column(nullable = false)
     private String title;
 
@@ -34,5 +42,12 @@ public class Document extends BaseEntity {
     @Column(name = "file_size")
     private Long fileSize;
 
-    // Constructors remain the same
+
+    // Parametreli constructor (case ile)
+    public Document(Long id, String title, DocumentType type, Case cse) {
+        super(id);
+        this.title = title;
+        this.type = type;
+        this.cse = cse;
+    }
 }

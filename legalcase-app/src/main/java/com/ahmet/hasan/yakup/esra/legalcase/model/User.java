@@ -10,7 +10,20 @@ import lombok.Setter;
 @Getter
 @Setter
 public class User extends BaseEntity {
+    public User() {
+        super();
+        this.enabled = true;
+    }
 
+    public User(Long id, String username, String email, String name, String surname, UserRole role) {
+        super(id);
+        this.username = username;
+        this.email = email;
+        this.name = name;
+        this.surname = surname;
+        this.role = role;
+        this.enabled = true;
+    }
     @Column(unique = true, nullable = false)
     private String username;
 

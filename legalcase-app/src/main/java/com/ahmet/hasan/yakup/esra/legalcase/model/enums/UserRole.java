@@ -10,14 +10,24 @@ public enum UserRole {
      * Administrator role with full system access
      */
     ADMIN,
-    
+
     /**
      * Lawyer role with case management capabilities
      */
     LAWYER,
-    
+
     /**
      * Assistant role with limited permissions
      */
-    ASSISTANT
+    ASSISTANT,
+
+    /**
+     * Judge role with special permissions
+     */
+    JUDGE,
+
+    /**
+     * Client role with limited access
+     */
+    CLIENT
 }

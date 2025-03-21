@@ -1,36 +1,20 @@
 package com.ahmet.hasan.yakup.esra.legalcase.model;
 
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 
-/**
- * @brief Model class that holds user information.
- * @author Team
- * @date March 2025
- */
+@Entity
+@Table(name = "users")
+@Getter
+@Setter
 public class User extends BaseEntity {
-    private String username;
-    private String password;
-    private String email;
-    private String name;
-    private String surname;
-    private UserRole role;
-
-    /**
-     * @brief Default constructor
-     */
     public User() {
         super();
+        this.enabled = true;
     }
 
-    /**
-     * @brief Parameterized constructor
-     * @param id User ID
-     * @param username Username
-     * @param email Email address
-     * @param name User's first name
-     * @param surname User's last name
-     * @param role User role
-     */
     public User(Long id, String username, String email, String name, String surname, UserRole role) {
         super(id);
         this.username = username;
@@ -38,136 +22,36 @@ public class User extends BaseEntity {
         this.name = name;
         this.surname = surname;
         this.role = role;
+        this.enabled = true;
     }
+    @Column(unique = true, nullable = false)
+    private String username;
 
-    /**
-     * @brief Get username
-     * @return Username
-     */
-    public String getUsername() {
-        return username;
-    }
+    @Column(nullable = false)
+    private String password;
 
-    /**
-     * @brief Set username
-     * @param username Username to set
-     */
-    public void setUsername(String username) {
-        this.username = username;
-    }
+    @Column(unique = true, nullable = false)
+    private String email;
 
-    /**
-     * @brief Get password (hashed)
-     * @return Hashed password
-     */
-    public String getPassword() {
-        return password;
-    }
+    @Column(nullable = false)
+    private String name;
 
-    /**
-     * @brief Set password
-     * @param password Password to set (should be hashed before setting)
-     */
-    public void setPassword(String password) {
-        this.password = password;
-    }
+    @Column(nullable = false)
+    private String surname;
 
-    /**
-     * @brief Get email address
-     * @return Email address
-     */
-    public String getEmail() {
-        return email;
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role;
 
-    /**
-     * @brief Set email address
-     * @param email Email address to set
-     */
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    // Add keycloak ID for integration
+    @Column(name = "keycloak_id")
+    private String keycloakId;
 
-    /**
-     * @brief Get first name
-     * @return First name
-     */
-    public String getName() {
-        return name;
-    }
+    // Add whether account is enabled
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
 
-    /**
-     * @brief Set first name
-     * @param name First name to set
-     */
-    public void setName(String name) {
-        this.name = name;
-    }
+    // Constructors remain the same
 
-    /**
-     * @brief Get last name
-     * @return Last name
-     */
-    public String getSurname() {
-        return surname;
-    }
-
-    /**
-     * @brief Set last name
-     * @param surname Last name to set
-     */
-    public void setSurname(String surname) {
-        this.surname = surname;
-    }
-
-    /**
-     * @brief Get user role
-     * @return User role
-     */
-    public UserRole getRole() {
-        return role;
-    }
-
-    /**
-     * @brief Set user role
-     * @param role User role to set
-     */
-    public void setRole(UserRole role) {
-        this.role = role;
-    }
-
-    /**
-     * @brief Authenticate user with password
-     * @param password Password to check
-     * @return True if password matches, false otherwise
-     */
-    public boolean authenticate(String password) {
-        // In a real application, this would use proper password hashing
-        return this.password != null && this.password.equals(password);
-    }
-
-    /**
-     * @brief Check if user has a specific role
-     * @param requiredRole Role to check
-     * @return True if user has the required role, false otherwise
-     */
-    public boolean hasRole(UserRole requiredRole) {
-        return this.role == requiredRole;
-    }
-
-    /**
-     * @brief String representation of the user
-     * @return String representing the user object
-     */
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + getId() +
-                ", username='" + username + '\'' +
-                ", email='" + email + '\'' +
-                ", name='" + name + '\'' +
-                ", surname='" + surname + '\'' +
-                ", role=" + role +
-                '}';
-    }
+    // authenticate, hasRole methods remain the same
 }

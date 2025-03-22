@@ -42,6 +42,17 @@ public class CaseService implements ICaseService {
             //Case number is already in use so give an error to the user
             return ApiResponse.error("Case number '" + caseEntity.getCaseNumber() + "' is already in use.", HttpStatus.CONFLICT.value());
         }
+
+        //Check title is empty
+        if (caseEntity.getTitle() == null || caseEntity.getTitle().isEmpty()) {
+            return ApiResponse.error("Case title cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        //Check status is empty
+        if (caseEntity.getStatus() == null) {
+            return ApiResponse.error("Case status cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+        
         Case savedCase = caseRepository.save(caseEntity);
         return ApiResponse.success(savedCase);
     }

@@ -18,4 +18,8 @@ public interface HearingRepository extends JpaRepository<Hearing, Long> {
     List<Hearing> findByHearingDateBetween(LocalDateTime start, LocalDateTime end);
 
     List<Hearing> findByHearingDateAfterAndStatusNot(LocalDateTime date, HearingStatus status);
+
+    List<Hearing> findByJudgeContainingIgnoreCase(String judgeName);
+
+    List<Hearing> findByLocationContainingIgnoreCase(String location);
 }

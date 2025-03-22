@@ -3,6 +3,7 @@ package com.ahmet.hasan.yakup.esra.legalcase.api;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.CaseService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,48 +27,54 @@ public class CaseController {
     }
 
     @PostMapping
-    public ResponseEntity<Case> createCase(@RequestBody Case caseEntity) {
+    public ResponseEntity<ApiResponse<Case>> createCase(@RequestBody Case caseEntity) {
         logger.info("REST request to create a new case");
-        Case createdCase = caseService.createCase(caseEntity);
-        return new ResponseEntity<>(createdCase, HttpStatus.CREATED);
+        ApiResponse<Case> response = caseService.createCase(caseEntity);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.CREATED : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Case> getCaseById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Case>> getCaseById(@PathVariable Long id) {
         logger.info("REST request to get case by ID: {}", id);
-        return caseService.getCaseById(id)
-                .map(caseEntity -> new ResponseEntity<>(caseEntity, HttpStatus.OK))
-                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        ApiResponse<Case> response = caseService.getCaseById(id);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @GetMapping
-    public ResponseEntity<List<Case>> getAllCases() {
+    public ResponseEntity<ApiResponse<List<Case>>> getAllCases() {
         logger.info("REST request to get all cases");
-        List<Case> cases = caseService.getAllCases();
-        return new ResponseEntity<>(cases, HttpStatus.OK);
+        ApiResponse<List<Case>> response = caseService.getAllCases();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Case>> getCasesByStatus(@PathVariable CaseStatus status) {
+    public ResponseEntity<ApiResponse<List<Case>>> getCasesByStatus(@PathVariable CaseStatus status) {
         logger.info("REST request to get cases by status: {}", status);
-        List<Case> cases = caseService.getCasesByStatus(status);
-        return new ResponseEntity<>(cases, HttpStatus.OK);
+        ApiResponse<List<Case>> response = caseService.getCasesByStatus(status);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Case> updateCase(@PathVariable Long id, @RequestBody Case caseEntity) {
+    public ResponseEntity<ApiResponse<Case>> updateCase(@PathVariable Long id, @RequestBody Case caseEntity) {
         logger.info("REST request to update case with ID: {}", id);
         if (!caseEntity.getId().equals(id)) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(
+                    ApiResponse.error("ID in the URL does not match the ID in the request body", HttpStatus.BAD_REQUEST.value()),
+                    HttpStatus.BAD_REQUEST
+            );
         }
-        Case updatedCase = caseService.updateCase(caseEntity);
-        return new ResponseEntity<>(updatedCase, HttpStatus.OK);
+        ApiResponse<Case> response = caseService.updateCase(caseEntity);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCase(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteCase(@PathVariable Long id) {
         logger.info("REST request to delete case with ID: {}", id);
-        caseService.deleteCase(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        ApiResponse<Void> response = caseService.deleteCase(id);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.NO_CONTENT : HttpStatus.valueOf(response.getErrorCode()));
     }
 }

@@ -2,21 +2,20 @@ package com.ahmet.hasan.yakup.esra.legalcase.service.virtual;
 
 import com.ahmet.hasan.yakup.esra.legalcase.model.Document;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.DocumentType;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 public interface DocumentService {
-    Document createDocument(Document document);
-    Document uploadDocument(Long caseId, String title, DocumentType type, MultipartFile file) throws IOException;
-    Optional<Document> getDocumentById(Long id);
-    List<Document> getAllDocuments();
-    List<Document> getDocumentsByCaseId(Long caseId);
-    List<Document> getDocumentsByType(DocumentType type);
-    List<Document> searchDocumentsByTitle(String keyword);
-    Document updateDocument(Long id, Document document);
-    void deleteDocument(Long id);
-    byte[] getDocumentContent(Long id) throws IOException;
+    ApiResponse<Document> createDocument(Document document);
+    ApiResponse<Document> uploadDocument(Long caseId, String title, DocumentType type, MultipartFile file);
+    ApiResponse<Document> getDocumentById(Long id);
+    ApiResponse<List<Document>> getAllDocuments();
+    ApiResponse<List<Document>> getDocumentsByCaseId(Long caseId);
+    ApiResponse<List<Document>> getDocumentsByType(DocumentType type);
+    ApiResponse<List<Document>> searchDocumentsByTitle(String keyword);
+    ApiResponse<Document> updateDocument(Long id, Document document);
+    ApiResponse<Void> deleteDocument(Long id);
+    ApiResponse<byte[]> getDocumentContent(Long id);
 }

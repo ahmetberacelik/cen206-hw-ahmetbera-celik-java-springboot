@@ -52,7 +52,15 @@ public class CaseService implements ICaseService {
         if (caseEntity.getStatus() == null) {
             return ApiResponse.error("Case status cannot be empty.", HttpStatus.BAD_REQUEST.value());
         }
-        
+
+        if(caseEntity.getStatus() != CaseStatus.NEW && caseEntity.getStatus() != CaseStatus.ACTIVE && caseEntity.getStatus() != CaseStatus.PENDING &&
+                caseEntity.getStatus() != CaseStatus.CLOSED && caseEntity.getStatus() != CaseStatus.ARCHIVED) {
+            return ApiResponse.error("Invalid case status: " + caseEntity.getStatus(), HttpStatus.BAD_REQUEST.value());
+        }
+
+        //Case type must be NEW
+        caseEntity.setStatus(CaseStatus.NEW);
+
         Case savedCase = caseRepository.save(caseEntity);
         return ApiResponse.success(savedCase);
     }
@@ -60,6 +68,10 @@ public class CaseService implements ICaseService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<Case> getCaseById(Long id) {
+        //Check if the id is null and must be greater than 0
+        if (id == null || id <= 0) {
+            return ApiResponse.error("Invalid case ID: " + id, HttpStatus.BAD_REQUEST.value());
+        }
         logger.info("Getting case by ID: {}", id);
         Optional<Case> caseOptional = caseRepository.findById(id);
         if (caseOptional.isPresent()) {
@@ -72,6 +84,10 @@ public class CaseService implements ICaseService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<Case> getCaseByCaseNumber(String caseNumber) {
+        //Check if the case number is empty
+        if (caseNumber == null || caseNumber.isEmpty()) {
+            return ApiResponse.error("Case number cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
         logger.info("Getting case by case number: {}", caseNumber);
         Optional<Case> caseOptional = caseRepository.findByCaseNumber(caseNumber);
         if (caseOptional.isPresent()) {
@@ -92,6 +108,15 @@ public class CaseService implements ICaseService {
     @Override
     @Transactional(readOnly = true)
     public ApiResponse<List<Case>> getCasesByStatus(CaseStatus status) {
+        //Check if the status is empty
+        if (status == null) {
+            return ApiResponse.error("Case status cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+        //CaseStatus must be one of the following values
+        if(status != CaseStatus.NEW && status != CaseStatus.ACTIVE && status != CaseStatus.PENDING &&
+                status != CaseStatus.CLOSED && status != CaseStatus.ARCHIVED) {
+            return ApiResponse.error("Invalid case status: " + status, HttpStatus.BAD_REQUEST.value());
+        }
         logger.info("Getting cases by status: {}", status);
         List<Case> cases = caseRepository.findByStatus(status);
         return ApiResponse.success(cases);
@@ -101,9 +126,36 @@ public class CaseService implements ICaseService {
     public ApiResponse<Case> updateCase(Case caseEntity) {
         logger.info("Updating case with ID: {}", caseEntity.getId());
 
+        // Check if case ID is null
+        if (caseEntity.getId() == null) {
+            return ApiResponse.error("Case ID cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Check if case number is empty
+        if (caseEntity.getCaseNumber() == null || caseEntity.getCaseNumber().isEmpty()) {
+            return ApiResponse.error("Case number cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Check if case title is empty
+        if (caseEntity.getTitle() == null || caseEntity.getTitle().isEmpty()) {
+            return ApiResponse.error("Case title cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Check if case status is empty
+        if (caseEntity.getStatus() == null) {
+            return ApiResponse.error("Case status cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
+
         // Check if case exists
         if (!caseRepository.existsById(caseEntity.getId())) {
             return ApiResponse.error("Case not found with ID: " + caseEntity.getId(), HttpStatus.NOT_FOUND.value());
+        }
+
+        // Check if case status is valid
+        if(caseEntity.getStatus() != CaseStatus.NEW && caseEntity.getStatus() != CaseStatus.ACTIVE && caseEntity.getStatus() != CaseStatus.PENDING &&
+                caseEntity.getStatus() != CaseStatus.CLOSED && caseEntity.getStatus() != CaseStatus.ARCHIVED) {
+            return ApiResponse.error("Invalid case status: " + caseEntity.getStatus(), HttpStatus.BAD_REQUEST.value());
         }
 
         // Check if the updated case number conflicts with another case

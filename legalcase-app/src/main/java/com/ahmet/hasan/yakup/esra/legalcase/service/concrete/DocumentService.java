@@ -5,7 +5,7 @@ import com.ahmet.hasan.yakup.esra.legalcase.model.Document;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.DocumentType;
 import com.ahmet.hasan.yakup.esra.legalcase.repository.CaseRepository;
 import com.ahmet.hasan.yakup.esra.legalcase.repository.DocumentRepository;
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.DocumentService;
+import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IDocumentService;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,16 +28,16 @@ import java.util.UUID;
 
 @Service
 @Transactional
-public class DocumentServiceImpl implements DocumentService {
+public class DocumentService implements IDocumentService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DocumentServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(DocumentService.class);
     private final String uploadDir = "uploads/documents";
 
     private final DocumentRepository documentRepository;
     private final CaseRepository caseRepository;
 
     @Autowired
-    public DocumentServiceImpl(DocumentRepository documentRepository, CaseRepository caseRepository) {
+    public DocumentService(DocumentRepository documentRepository, CaseRepository caseRepository) {
         this.documentRepository = documentRepository;
         this.caseRepository = caseRepository;
 

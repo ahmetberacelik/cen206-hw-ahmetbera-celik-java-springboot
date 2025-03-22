@@ -1,6 +1,6 @@
 package com.ahmet.hasan.yakup.esra.legalcase.service.concrete;
 
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.CaseService;
+import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ICaseService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
 import com.ahmet.hasan.yakup.esra.legalcase.repository.CaseRepository;
@@ -17,14 +17,14 @@ import java.util.Optional;
 
 @Service
 @Transactional
-public class CaseServiceImpl implements CaseService {
+public class CaseService implements ICaseService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CaseServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(CaseService.class);
 
     private final CaseRepository caseRepository;
 
     @Autowired
-    public CaseServiceImpl(CaseRepository caseRepository) {
+    public CaseService(CaseRepository caseRepository) {
         this.caseRepository = caseRepository;
     }
 

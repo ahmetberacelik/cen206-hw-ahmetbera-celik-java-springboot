@@ -5,7 +5,7 @@ import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 
 import java.util.List;
 
-public interface ClientService {
+public interface IClientService {
     ApiResponse<Client> createClient(Client client);
     ApiResponse<Client> getClientById(Long id);
     ApiResponse<Client> getClientByEmail(String email);

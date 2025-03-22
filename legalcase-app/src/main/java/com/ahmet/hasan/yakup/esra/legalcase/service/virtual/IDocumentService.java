@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-public interface DocumentService {
+public interface IDocumentService {
     ApiResponse<Document> createDocument(Document document);
     ApiResponse<Document> uploadDocument(Long caseId, String title, DocumentType type, MultipartFile file);
     ApiResponse<Document> getDocumentById(Long id);

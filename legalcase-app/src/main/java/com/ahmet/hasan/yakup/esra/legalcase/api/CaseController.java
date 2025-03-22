@@ -1,6 +1,6 @@
 package com.ahmet.hasan.yakup.esra.legalcase.api;
 
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.CaseService;
+import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ICaseService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
@@ -19,17 +19,17 @@ public class CaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(CaseController.class);
 
-    private final CaseService caseService;
+    private final ICaseService ICaseService;
 
     @Autowired
-    public CaseController(CaseService caseService) {
-        this.caseService = caseService;
+    public CaseController(ICaseService ICaseService) {
+        this.ICaseService = ICaseService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Case>> createCase(@RequestBody Case caseEntity) {
         logger.info("REST request to create a new case");
-        ApiResponse<Case> response = caseService.createCase(caseEntity);
+        ApiResponse<Case> response = ICaseService.createCase(caseEntity);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.CREATED : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -37,7 +37,7 @@ public class CaseController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Case>> getCaseById(@PathVariable Long id) {
         logger.info("REST request to get case by ID: {}", id);
-        ApiResponse<Case> response = caseService.getCaseById(id);
+        ApiResponse<Case> response = ICaseService.getCaseById(id);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -45,14 +45,14 @@ public class CaseController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Case>>> getAllCases() {
         logger.info("REST request to get all cases");
-        ApiResponse<List<Case>> response = caseService.getAllCases();
+        ApiResponse<List<Case>> response = ICaseService.getAllCases();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/status/{status}")
     public ResponseEntity<ApiResponse<List<Case>>> getCasesByStatus(@PathVariable CaseStatus status) {
         logger.info("REST request to get cases by status: {}", status);
-        ApiResponse<List<Case>> response = caseService.getCasesByStatus(status);
+        ApiResponse<List<Case>> response = ICaseService.getCasesByStatus(status);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -65,7 +65,7 @@ public class CaseController {
                     HttpStatus.BAD_REQUEST
             );
         }
-        ApiResponse<Case> response = caseService.updateCase(caseEntity);
+        ApiResponse<Case> response = ICaseService.updateCase(caseEntity);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -73,7 +73,7 @@ public class CaseController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteCase(@PathVariable Long id) {
         logger.info("REST request to delete case with ID: {}", id);
-        ApiResponse<Void> response = caseService.deleteCase(id);
+        ApiResponse<Void> response = ICaseService.deleteCase(id);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.NO_CONTENT : HttpStatus.valueOf(response.getErrorCode()));
     }

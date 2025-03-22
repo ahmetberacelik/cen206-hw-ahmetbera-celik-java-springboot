@@ -1,6 +1,6 @@
 package com.ahmet.hasan.yakup.esra.legalcase.api;
 
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ClientService;
+import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IClientService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Client;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.slf4j.Logger;
@@ -21,17 +21,17 @@ public class ClientController {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientController.class);
 
-    private final ClientService clientService;
+    private final IClientService IClientService;
 
     @Autowired
-    public ClientController(ClientService clientService) {
-        this.clientService = clientService;
+    public ClientController(IClientService IClientService) {
+        this.IClientService = IClientService;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Client>> createClient(@RequestBody Client client) {
         logger.info("REST request to create a new client");
-        ApiResponse<Client> response = clientService.createClient(client);
+        ApiResponse<Client> response = IClientService.createClient(client);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.CREATED : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -39,7 +39,7 @@ public class ClientController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Client>> getClientById(@PathVariable Long id) {
         logger.info("REST request to get client by ID: {}", id);
-        ApiResponse<Client> response = clientService.getClientById(id);
+        ApiResponse<Client> response = IClientService.getClientById(id);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -47,7 +47,7 @@ public class ClientController {
     @GetMapping("/email/{email}")
     public ResponseEntity<ApiResponse<Client>> getClientByEmail(@PathVariable String email) {
         logger.info("REST request to get client by email: {}", email);
-        ApiResponse<Client> response = clientService.getClientByEmail(email);
+        ApiResponse<Client> response = IClientService.getClientByEmail(email);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -55,14 +55,14 @@ public class ClientController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<Client>>> getAllClients() {
         logger.info("REST request to get all clients");
-        ApiResponse<List<Client>> response = clientService.getAllClients();
+        ApiResponse<List<Client>> response = IClientService.getAllClients();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<List<Client>>> searchClients(@RequestParam String term) {
         logger.info("REST request to search clients with term: {}", term);
-        ApiResponse<List<Client>> response = clientService.searchClients(term);
+        ApiResponse<List<Client>> response = IClientService.searchClients(term);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
@@ -75,7 +75,7 @@ public class ClientController {
                     HttpStatus.BAD_REQUEST
             );
         }
-        ApiResponse<Client> response = clientService.updateClient(client);
+        ApiResponse<Client> response = IClientService.updateClient(client);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
@@ -83,7 +83,7 @@ public class ClientController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteClient(@PathVariable Long id) {
         logger.info("REST request to delete client with ID: {}", id);
-        ApiResponse<Void> response = clientService.deleteClient(id);
+        ApiResponse<Void> response = IClientService.deleteClient(id);
         return new ResponseEntity<>(response,
                 response.isSuccess() ? HttpStatus.NO_CONTENT : HttpStatus.valueOf(response.getErrorCode()));
     }

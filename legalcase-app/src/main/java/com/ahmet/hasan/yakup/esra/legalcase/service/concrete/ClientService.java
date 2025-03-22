@@ -1,9 +1,9 @@
 package com.ahmet.hasan.yakup.esra.legalcase.service.concrete;
 
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ClientService;
+import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IClientService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Client;
 import com.ahmet.hasan.yakup.esra.legalcase.repository.ClientRepository;
-import com.ahmet.hasan.yakup.esra.legalcase.util.ApiResponse;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,14 +19,14 @@ import java.util.Optional;
  */
 @Service
 @Transactional
-public class ClientServiceImpl implements ClientService {
+public class ClientService implements IClientService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ClientServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(ClientService.class);
 
     private final ClientRepository clientRepository;
 
     @Autowired
-    public ClientServiceImpl(ClientRepository clientRepository) {
+    public ClientService(ClientRepository clientRepository) {
         this.clientRepository = clientRepository;
     }
 

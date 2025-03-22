@@ -6,7 +6,7 @@ import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 
 import java.util.List;
 
-public interface CaseService {
+public interface ICaseService {
     ApiResponse<Case> createCase(Case caseEntity);
     ApiResponse<Case> getCaseById(Long id);
     ApiResponse<Case> getCaseByCaseNumber(String caseNumber);

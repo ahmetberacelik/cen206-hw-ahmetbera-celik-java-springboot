@@ -29,21 +29,21 @@ public class CaseService implements ICaseService {
     }
 
     @Override
-    public ApiResponse< Case> createCase(Case caseEntity) {
+    public ApiResponse<Case> createCase(Case caseEntity) {
         logger.info("Creating new case: {}", caseEntity.getTitle());
+        //Check if the case number is empty
+        if (caseEntity.getCaseNumber() == null || caseEntity.getCaseNumber().isEmpty()) {
+            return ApiResponse.error("Case number cannot be empty.", HttpStatus.BAD_REQUEST.value());
+        }
+
         //Check if the case number is already in use
         Optional<Case> existingCase = caseRepository.findByCaseNumber(caseEntity.getCaseNumber());
         if (existingCase.isPresent()) {
             //Case number is already in use so give an error to the user
             return ApiResponse.error("Case number '" + caseEntity.getCaseNumber() + "' is already in use.", HttpStatus.CONFLICT.value());
         }
-        try {
-            Case savedCase = caseRepository.save(caseEntity);
-            return ApiResponse.success(savedCase);
-        } catch (Exception e) {
-            logger.error("Error while saving case", e);
-            return ApiResponse.error("An unexpected error occurred: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
-        }
+        Case savedCase = caseRepository.save(caseEntity);
+        return ApiResponse.success(savedCase);
     }
 
     @Override

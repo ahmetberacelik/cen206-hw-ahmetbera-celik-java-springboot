@@ -9,10 +9,14 @@ import java.util.List;
 
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Long> {
-
     List<Document> findByCseId(Long caseId);
-
     List<Document> findByType(DocumentType type);
-
     List<Document> findByTitleContainingIgnoreCase(String title);
+
+    // Dosya içeriğine göre arama için
+    List<Document> findByContentTypeContaining(String contentType);
+
+    // Dosya boyutuna göre filtreleme için
+    List<Document> findByFileSizeGreaterThan(Long minSize);
+    List<Document> findByFileSizeLessThan(Long maxSize);
 }

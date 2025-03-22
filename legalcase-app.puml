@@ -1,0 +1,300 @@
+@startuml LegalCaseApp
+
+' Style
+skinparam classAttributeIconSize 0
+skinparam backgroundColor white
+skinparam class {
+    BackgroundColor #FEFEFE
+    ArrowColor #333333
+    BorderColor #999999
+}
+skinparam stereotypeCBackgroundColor #ACC1E4
+
+' Abstract Base Entity
+abstract class BaseEntity {
+    +Long id
+    +LocalDateTime createdAt
+    +LocalDateTime updatedAt
+}
+
+' Model classes
+class User {
+    -String username
+    -String password
+    -String email
+    -String fullName
+    -UserRole role
+    +authenticate()
+    +updateProfile()
+}
+
+class Client {
+    -String firstName
+    -String lastName
+    -String contactInfo
+    -String address
+    +addNewClient()
+    +updateClientInfo()
+}
+
+class Case {
+    -String caseNumber
+    -String title
+    -String description
+    -CaseType caseType
+    -CaseStatus status
+    -LocalDate filingDate
+    -Client client
+    -User assignedLawyer
+    +createCase()
+    +updateStatus()
+    +assignToLawyer()
+}
+
+class Document {
+    -String title
+    -String filePath
+    -DocumentType type
+    -Case relatedCase
+    -LocalDate uploadDate
+    +uploadDocument()
+    +downloadDocument()
+}
+
+class Hearing {
+    -Case relatedCase
+    -LocalDateTime dateTime
+    -String location
+    -String notes
+    -HearingStatus status
+    +scheduleHearing()
+    +updateHearingDetails()
+}
+
+' Enums
+enum CaseStatus {
+    OPEN
+    IN_PROGRESS
+    PENDING
+    CLOSED
+}
+
+enum CaseType {
+    CIVIL
+    CRIMINAL
+    FAMILY
+    CORPORATE
+    OTHERS
+}
+
+enum DocumentType {
+    PLEADING
+    EVIDENCE
+    CONTRACT
+    COURT_ORDER
+    OTHERS
+}
+
+enum HearingStatus {
+    SCHEDULED
+    COMPLETED
+    POSTPONED
+    CANCELED
+}
+
+enum UserRole {
+    ADMIN
+    LAWYER
+    ASSISTANT
+}
+
+' Controllers
+class UserAuthenticationController {
+    +login(credentials)
+    +logout()
+    +register(userData)
+}
+
+class ClientController {
+    +getClients()
+    +getClientById(id)
+    +createClient(clientData)
+    +updateClient(id, clientData)
+    +deleteClient(id)
+}
+
+class CaseController {
+    +getCases()
+    +getCaseById(id)
+    +createCase(caseData)
+    +updateCase(id, caseData)
+    +deleteCase(id)
+}
+
+class DocumentController {
+    +getDocuments()
+    +getDocumentById(id)
+    +uploadDocument(documentData)
+    +updateDocument(id, documentData)
+    +deleteDocument(id)
+}
+
+class HearingController {
+    +getHearings()
+    +getHearingById(id)
+    +scheduleHearing(hearingData)
+    +updateHearing(id, hearingData)
+    +deleteHearing(id)
+}
+
+' Repositories
+class UserRepository {
+    +findAll()
+    +findById(id)
+    +save(user)
+    +update(id, userData)
+    +delete(id)
+    +findByUsername(username)
+}
+
+class ClientRepository {
+    +findAll()
+    +findById(id)
+    +save(client)
+    +update(id, clientData)
+    +delete(id)
+}
+
+class CaseRepository {
+    +findAll()
+    +findById(id)
+    +save(case)
+    +update(id, caseData)
+    +delete(id)
+    +findByClient(clientId)
+}
+
+class DocumentRepository {
+    +findAll()
+    +findById(id)
+    +save(document)
+    +update(id, documentData)
+    +delete(id)
+    +findByCase(caseId)
+}
+
+class HearingRepository {
+    +findAll()
+    +findById(id)
+    +save(hearing)
+    +update(id, hearingData)
+    +delete(id)
+    +findByCase(caseId)
+}
+
+' Main Application
+class LegalCaseApp {
+    +main(String[] args)
+    +initializeApp()
+}
+
+' Relationships
+BaseEntity <|-- User
+BaseEntity <|-- Client
+BaseEntity <|-- Case
+BaseEntity <|-- Document
+BaseEntity <|-- Hearing
+
+Case "1" --> "1" Client
+Case "1" --> "1" User : assignedTo
+Case "1" --> "*" Document : contains
+Case "1" --> "*" Hearing : schedules
+
+Case --> CaseStatus : has
+Case --> CaseType : isOfType
+Document --> DocumentType : hasType
+Hearing --> HearingStatus : has
+User --> UserRole : hasRole
+
+' Service classes
+class UserService {
+    -UserRepository userRepository
+    +findAllUsers()
+    +findUserById(id)
+    +saveUser(user)
+    +updateUser(id, userData)
+    +deleteUser(id)
+    +findUserByUsername(username)
+    +authenticateUser(credentials)
+}
+
+class ClientService {
+    -ClientRepository clientRepository
+    +findAllClients()
+    +findClientById(id)
+    +saveClient(client)
+    +updateClient(id, clientData)
+    +deleteClient(id)
+}
+
+class CaseService {
+    -CaseRepository caseRepository
+    -ClientService clientService
+    -UserService userService
+    +findAllCases()
+    +findCaseById(id)
+    +saveCase(case)
+    +updateCase(id, caseData)
+    +deleteCase(id)
+    +findCasesByClient(clientId)
+    +assignCaseToLawyer(caseId, lawyerId)
+    +updateCaseStatus(caseId, status)
+}
+
+class DocumentService {
+    -DocumentRepository documentRepository
+    -CaseService caseService
+    +findAllDocuments()
+    +findDocumentById(id)
+    +saveDocument(document)
+    +updateDocument(id, documentData)
+    +deleteDocument(id)
+    +findDocumentsByCase(caseId)
+    +uploadDocument(documentData, file)
+    +downloadDocument(id)
+}
+
+class HearingService {
+    -HearingRepository hearingRepository
+    -CaseService caseService
+    +findAllHearings()
+    +findHearingById(id)
+    +saveHearing(hearing)
+    +updateHearing(id, hearingData)
+    +deleteHearing(id)
+    +findHearingsByCase(caseId)
+    +scheduleHearing(hearingData)
+    +updateHearingStatus(hearingId, status)
+}
+
+' Relationships between Controllers and Services
+CaseController --> CaseService : uses
+ClientController --> ClientService : uses
+DocumentController --> DocumentService : uses
+HearingController --> HearingService : uses
+UserAuthenticationController --> UserService : uses
+
+' Relationships between Services and Repositories
+CaseService --> CaseRepository : uses
+ClientService --> ClientRepository : uses
+DocumentService --> DocumentRepository : uses
+HearingService --> HearingRepository : uses
+UserService --> UserRepository : uses
+
+' Service interdependencies
+CaseService --> ClientService : uses
+CaseService --> UserService : uses
+DocumentService --> CaseService : uses
+HearingService --> CaseService : uses
+
+@enduml

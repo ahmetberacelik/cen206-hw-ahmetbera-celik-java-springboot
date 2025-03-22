@@ -2,6 +2,7 @@ package com.ahmet.hasan.yakup.esra.legalcase.api;
 
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ClientService;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Client;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,56 +29,62 @@ public class ClientController {
     }
 
     @PostMapping
-    public ResponseEntity<Client> createClient(@RequestBody Client client) {
+    public ResponseEntity<ApiResponse<Client>> createClient(@RequestBody Client client) {
         logger.info("REST request to create a new client");
-        Client createdClient = clientService.createClient(client);
-        return new ResponseEntity<>(createdClient, HttpStatus.CREATED);
+        ApiResponse<Client> response = clientService.createClient(client);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.CREATED : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Client> getClientById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Client>> getClientById(@PathVariable Long id) {
         logger.info("REST request to get client by ID: {}", id);
-        return clientService.getClientById(id)
-                .map(client -> new ResponseEntity<>(client, HttpStatus.OK))
-                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        ApiResponse<Client> response = clientService.getClientById(id);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<Client> getClientByEmail(@PathVariable String email) {
+    public ResponseEntity<ApiResponse<Client>> getClientByEmail(@PathVariable String email) {
         logger.info("REST request to get client by email: {}", email);
-        return clientService.getClientByEmail(email)
-                .map(client -> new ResponseEntity<>(client, HttpStatus.OK))
-                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+        ApiResponse<Client> response = clientService.getClientByEmail(email);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @GetMapping
-    public ResponseEntity<List<Client>> getAllClients() {
+    public ResponseEntity<ApiResponse<List<Client>>> getAllClients() {
         logger.info("REST request to get all clients");
-        List<Client> clients = clientService.getAllClients();
-        return new ResponseEntity<>(clients, HttpStatus.OK);
+        ApiResponse<List<Client>> response = clientService.getAllClients();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<Client>> searchClients(@RequestParam String term) {
+    public ResponseEntity<ApiResponse<List<Client>>> searchClients(@RequestParam String term) {
         logger.info("REST request to search clients with term: {}", term);
-        List<Client> clients = clientService.searchClients(term);
-        return new ResponseEntity<>(clients, HttpStatus.OK);
+        ApiResponse<List<Client>> response = clientService.searchClients(term);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Client> updateClient(@PathVariable Long id, @RequestBody Client client) {
+    public ResponseEntity<ApiResponse<Client>> updateClient(@PathVariable Long id, @RequestBody Client client) {
         logger.info("REST request to update client with ID: {}", id);
         if (!client.getId().equals(id)) {
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(
+                    ApiResponse.error("ID in the URL does not match the ID in the request body", HttpStatus.BAD_REQUEST.value()),
+                    HttpStatus.BAD_REQUEST
+            );
         }
-        Client updatedClient = clientService.updateClient(client);
-        return new ResponseEntity<>(updatedClient, HttpStatus.OK);
+        ApiResponse<Client> response = clientService.updateClient(client);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.OK : HttpStatus.valueOf(response.getErrorCode()));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteClient(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteClient(@PathVariable Long id) {
         logger.info("REST request to delete client with ID: {}", id);
-        clientService.deleteClient(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        ApiResponse<Void> response = clientService.deleteClient(id);
+        return new ResponseEntity<>(response,
+                response.isSuccess() ? HttpStatus.NO_CONTENT : HttpStatus.valueOf(response.getErrorCode()));
     }
 }

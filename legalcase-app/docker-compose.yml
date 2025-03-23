@@ -16,6 +16,7 @@ services:
       - mysql-data:/var/lib/mysql
       - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
       - ./src/main/resources/db/init-data.sql:/docker-entrypoint-initdb.d/2-init-data.sql
+      - ./docker/mysql/init-keycloak-db.sql:/docker-entrypoint-initdb.d/3-init-keycloak-db.sql
     networks:
       - legalcase-network
     restart: unless-stopped
@@ -41,6 +42,32 @@ services:
       - mysql
     restart: unless-stopped
 
+  # Keycloak Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:20.0.3
+    container_name: legalcase-keycloak
+    command: 
+      - "start-dev"
+    environment:
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql
+      DB_DATABASE: keycloak
+      DB_USER: legalcaseuser
+      DB_PASSWORD: legalcasepass
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_IMPORT: /tmp/legalcase-realm.json
+    volumes:
+      - ./docker/keycloak/import/legalcase-realm.json:/tmp/legalcase-realm.json
+    ports:
+      - "8090:8080"
+    networks:
+      - legalcase-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Legal Case Tracker Application
   app:
     build:
@@ -50,14 +77,21 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/legalcasedb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      DB_USER: legalcaseuser
-      DB_PASSWORD: legalcasepass
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legalcasedb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: legalcaseuser
+      SPRING_DATASOURCE_PASSWORD: legalcasepass
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: legalcase
+      KEYCLOAK_RESOURCE: legalcase-app
+      KEYCLOAK_CREDENTIALS_SECRET: legalcase-secret
+      KEYCLOAK_PUBLIC_CLIENT: "false"
+      AUTH_PROVIDER: keycloak
+      SPRING_PROFILES_ACTIVE: prod
     networks:
       - legalcase-network
     depends_on:
-      mysql:
-        condition: service_healthy
+      - mysql
+      - keycloak
     restart: unless-stopped
 
 # Networks

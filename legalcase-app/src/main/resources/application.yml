@@ -17,6 +17,31 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
 
+  # OAuth2 Resource Server Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+          jwk-set-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}/protocol/openid-connect/certs
+
+# Kimlik doğrulama sağlayıcısı
+auth:
+  provider: keycloak
+
+# Keycloak Configuration
+keycloak:
+  auth-server-url: http://localhost:8090
+  realm: legalcase
+  resource: legalcase-app
+  credentials:
+    secret: legalcase-secret
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  public-client: false
+  principal-attribute: preferred_username
+
 server:
   port: 8080
   servlet:
@@ -25,4 +50,23 @@ server:
 logging:
   level:
     org.springframework: INFO
+    org.springframework.security: DEBUG
     com.ahmet.hasan.yakup.esra.legalcase: DEBUG
+    org.keycloak: DEBUG
+
+# Default profile settings
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+keycloak:
+  auth-server-url: http://localhost:8090
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+keycloak:
+  auth-server-url: http://keycloak:8080

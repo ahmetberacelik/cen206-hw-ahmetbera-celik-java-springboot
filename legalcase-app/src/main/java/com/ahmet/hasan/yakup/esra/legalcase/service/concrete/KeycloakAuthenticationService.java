@@ -56,9 +56,9 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
      * Get admin Keycloak instance
      */
     private Keycloak getKeycloakAdminInstance() {
-        // Loglama ekleyelim
+        // Let's add logging
         logger.debug("Trying to connect to Keycloak admin with URL: {}", authServerUrl);
-        
+
         try {
             return KeycloakBuilder.builder()
                     .serverUrl(authServerUrl)
@@ -69,10 +69,10 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                     .build();
         } catch (Exception e) {
             logger.error("Error connecting to Keycloak with URL {}: {}", authServerUrl, e.getMessage());
-            // Docker içinden erişim için alternatif URL deneyelim
+            // Let's try an alternative URL for Docker access
             String dockerUrl = "http://keycloak:8080";
             logger.debug("Trying alternate Docker URL: {}", dockerUrl);
-            
+
             try {
                 return KeycloakBuilder.builder()
                         .serverUrl(dockerUrl)
@@ -103,7 +103,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                     .build();
         } catch (Exception e) {
             logger.error("Failed to create Keycloak instance", e);
-            // Yerel bir mock instance dön - sadece hataları önlemek için
+            // Return a local mock instance - only to prevent errors
             return null;
         }
     }
@@ -117,7 +117,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
             Keycloak keycloak = getKeycloakAdminInstance();
             if (keycloak == null) {
                 logger.warn("Keycloak instance is null, falling back to local user registration");
-                // Kullanıcıyı sadece yerel veritabanına kaydet
+                // Save the user only to the local database
                 user.setEnabled(true);
                 User savedUser = userRepository.save(user);
                 savedUser.setPassword(null);
@@ -162,7 +162,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                     return ApiResponse.error("Email already exists", HttpStatus.CONFLICT.value());
                 }
 
-                // Kullanıcı oluşturmak için Keycloak API'yi doğrudan çağıralım
+                // Let's directly call the Keycloak API to create a user
                 return createUserWithDirectHttpCall(user, realmResource);
             } catch (Exception e) {
                 logger.error("Error getting realm resource", e);
@@ -177,33 +177,33 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
     }
 
     /**
-     * Kullanıcıyı doğrudan HTTP çağrısı yaparak oluşturur
+     * Creates the user by making a direct HTTP call
      */
     private ApiResponse<User> createUserWithDirectHttpCall(User user, RealmResource realmResource) {
         try {
-            // Keycloak URL'sini oluştur
+            // Create the Keycloak URL
             String keycloakUrl = authServerUrl + "/admin/realms/" + realm + "/users";
             logger.debug("Creating user with direct HTTP call to URL: {}", keycloakUrl);
 
-            // HTTP client oluştur
+            // Create HTTP client
             java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
                     .version(java.net.http.HttpClient.Version.HTTP_2)
                     .build();
 
-            // Admin token al
+            // Get admin token
             String adminToken = getKeycloakAdminInstance().tokenManager().getAccessToken().getToken();
             if (adminToken == null || adminToken.isEmpty()) {
                 return ApiResponse.error("Failed to get admin token", HttpStatus.INTERNAL_SERVER_ERROR.value());
             }
 
-            // JSON payload oluştur
+            // Create JSON payload
             String jsonPayload = String.format(
-                "{\"username\":\"%s\",\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"enabled\":true,\"emailVerified\":true,\"credentials\":[{\"type\":\"password\",\"value\":\"%s\",\"temporary\":false}]}",
-                user.getUsername(), user.getEmail(), user.getName(), user.getSurname(), user.getPassword()
+                    "{\"username\":\"%s\",\"email\":\"%s\",\"firstName\":\"%s\",\"lastName\":\"%s\",\"enabled\":true,\"emailVerified\":true,\"credentials\":[{\"type\":\"password\",\"value\":\"%s\",\"temporary\":false}]}",
+                    user.getUsername(), user.getEmail(), user.getName(), user.getSurname(), user.getPassword()
             );
             logger.debug("User JSON payload: {}", jsonPayload);
 
-            // HTTP isteği oluştur
+            // Create HTTP request
             java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                     .uri(java.net.URI.create(keycloakUrl))
                     .header("Content-Type", "application/json")
@@ -211,53 +211,53 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                     .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonPayload))
                     .build();
 
-            // İsteği gönder
+            // Send the request
             java.net.http.HttpResponse<String> response = client.send(request,
                     java.net.http.HttpResponse.BodyHandlers.ofString());
 
-            // Response kontrol et
+            // Check response
             int statusCode = response.statusCode();
             String responseBody = response.body();
-            
+
             if (statusCode >= 400) {
-                logger.error("Error creating user with direct HTTP call: Status Code: {} - Body: {}", 
+                logger.error("Error creating user with direct HTTP call: Status Code: {} - Body: {}",
                         statusCode, responseBody);
-                return ApiResponse.error("Failed to register user: HTTP " + statusCode + 
-                        (responseBody != null && !responseBody.isEmpty() ? " - " + responseBody : ""),
+                return ApiResponse.error("Failed to register user: HTTP " + statusCode +
+                                (responseBody != null && !responseBody.isEmpty() ? " - " + responseBody : ""),
                         statusCode);
             }
 
-            // Location header'dan kullanıcı ID'sini al
+            // Get the user ID from the Location header
             String userId = null;
             String location = response.headers().firstValue("Location").orElse(null);
             if (location != null) {
                 userId = location.replaceAll(".*/([^/]+)$", "$1");
             } else {
-                // ID alamadık, kullanıcıyı ara
+                // We couldn't get ID, search for the user
                 logger.debug("No Location header in response, searching for user: {}", user.getUsername());
                 userId = findUserIdByUsername(realmResource, user.getUsername());
             }
 
             if (userId == null) {
                 logger.error("Could not get user ID after creation");
-                return ApiResponse.error("Failed to get user ID after registration", 
+                return ApiResponse.error("Failed to get user ID after registration",
                         HttpStatus.INTERNAL_SERVER_ERROR.value());
             }
 
-            // Role ata
+            // Assign role
             try {
                 assignRoleWithDirectHttpCall(userId, user.getRole().name(), adminToken);
             } catch (Exception e) {
                 logger.error("Failed to assign role to user", e);
-                // Devam et - rolü sonra atabiliriz
+                // Continue - we can assign the role later
             }
 
-            // Keycloak ID'sini ayarla
+            // Set the Keycloak ID
             user.setKeycloakId(userId);
             user.setEnabled(true);
-            
-            // Şifre veritabanındaki NOT NULL kısıtlamasını karşılamak için korunmalı
-            // Kullanıcı veritabanına kaydedildi, şimdi güvenli bir yanıt için bir kopya oluşturalım
+
+            // Password should be preserved to meet the NOT NULL constraint in the database
+            // User saved to database, now let's create a copy for a secure response
             User userToReturn = new User();
             userToReturn.setId(user.getId());
             userToReturn.setUsername(user.getUsername());
@@ -269,11 +269,11 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
             userToReturn.setEnabled(user.isEnabled());
             userToReturn.setCreatedAt(user.getCreatedAt());
             userToReturn.setUpdatedAt(user.getUpdatedAt());
-            
-            // Kullanıcıyı veritabanına kaydet - şifre korunacak
+
+            // Save the user to the database - password will be preserved
             User savedUser = userRepository.save(user);
-            
-            // Güvenlik için şifreyi yanıtta gösterme
+
+            // Don't show the password in the response for security
             return ApiResponse.success(userToReturn);
         } catch (Exception e) {
             logger.error("Error in direct HTTP call", e);
@@ -283,33 +283,33 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
     }
 
     /**
-     * Kullanıcıya rolü doğrudan HTTP çağrısı ile atar
+     * Assigns the role to the user with a direct HTTP call
      */
     private void assignRoleWithDirectHttpCall(String userId, String roleName, String adminToken) throws Exception {
-        // Keycloak URL'sini oluştur
+        // Create the Keycloak URL
         String keycloakUrl = authServerUrl + "/admin/realms/" + realm + "/users/" + userId + "/role-mappings/realm";
         logger.debug("Assigning role with direct HTTP call to URL: {}", keycloakUrl);
 
-        // HTTP client oluştur
+        // Create HTTP client
         java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
                 .version(java.net.http.HttpClient.Version.HTTP_2)
                 .build();
 
-        // Önce rolü al (ID'ye ihtiyacımız var)
+        // First get the role (we need the ID)
         RoleRepresentation role = findRoleByName(roleName);
         if (role == null || role.getId() == null) {
             logger.error("Role not found: {}", roleName);
             throw new Exception("Role not found: " + roleName);
         }
 
-        // JSON payload oluştur
+        // Create JSON payload
         String jsonPayload = String.format(
-            "[{\"id\":\"%s\",\"name\":\"%s\"}]",
-            role.getId(), roleName
+                "[{\"id\":\"%s\",\"name\":\"%s\"}]",
+                role.getId(), roleName
         );
         logger.debug("Role assignment payload: {}", jsonPayload);
 
-        // HTTP isteği oluştur
+        // Create HTTP request
         java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
                 .uri(java.net.URI.create(keycloakUrl))
                 .header("Content-Type", "application/json")
@@ -317,23 +317,23 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                 .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonPayload))
                 .build();
 
-        // İsteği gönder
+        // Send the request
         java.net.http.HttpResponse<String> response = client.send(request,
                 java.net.http.HttpResponse.BodyHandlers.ofString());
 
-        // Response kontrol et
+        // Check response
         int statusCode = response.statusCode();
         if (statusCode >= 400) {
             String responseBody = response.body();
-            logger.error("Error assigning role with direct HTTP call: Status Code: {} - Body: {}", 
+            logger.error("Error assigning role with direct HTTP call: Status Code: {} - Body: {}",
                     statusCode, responseBody);
-            throw new Exception("Failed to assign role: HTTP " + statusCode + 
+            throw new Exception("Failed to assign role: HTTP " + statusCode +
                     (responseBody != null && !responseBody.isEmpty() ? " - " + responseBody : ""));
         }
     }
-    
+
     /**
-     * Kullanıcı ID'sini kullanıcı adına göre bulur
+     * Finds the user ID by username
      */
     private String findUserIdByUsername(RealmResource realmResource, String username) {
         try {
@@ -346,9 +346,9 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
         }
         return null;
     }
-    
+
     /**
-     * Rolü adına göre bulur
+     * Finds the role by name
      */
     private RoleRepresentation findRoleByName(String roleName) {
         try {
@@ -397,7 +397,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
 
         // Create Keycloak instance
         Keycloak keycloak = null;
-        
+
         try {
             // Try to get Keycloak instance
             keycloak = KeycloakBuilder.builder()
@@ -409,18 +409,18 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
                     .password(password)
                     .grantType(OAuth2Constants.PASSWORD)
                     .build();
-                
+
             // Try to get token
             AccessTokenResponse tokenResponse = keycloak.tokenManager().getAccessToken();
-            
+
             // Find user by username or email
             User user = userRepository.findByUsername(usernameOrEmail)
                     .orElseGet(() -> userRepository.findByEmail(usernameOrEmail).orElse(null));
-                    
+
             if (user == null) {
                 return ApiResponse.error("User not found", HttpStatus.NOT_FOUND.value());
             }
-            
+
             // Create response map
             Map<String, Object> response = new HashMap<>();
             response.put("user", user);
@@ -428,31 +428,31 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
             response.put("expiresIn", tokenResponse.getExpiresIn());
             response.put("refreshToken", tokenResponse.getRefreshToken());
             response.put("refreshExpiresIn", tokenResponse.getRefreshExpiresIn());
-            
+
             return ApiResponse.success(response);
         } catch (Exception e) {
             logger.warn("Keycloak authentication failed, falling back to local authentication: {}", e.getMessage());
-            
+
             // Fall back to local authentication
             try {
                 // Find user by username or email
                 User user = userRepository.findByUsername(usernameOrEmail)
                         .orElseGet(() -> userRepository.findByEmail(usernameOrEmail).orElse(null));
-                        
+
                 if (user == null) {
                     return ApiResponse.error("User not found", HttpStatus.NOT_FOUND.value());
                 }
-                
+
                 // Create mock token response
                 Map<String, Object> response = new HashMap<>();
                 response.put("user", user);
                 response.put("token", "local-auth-token-" + user.getId() + "-" + System.currentTimeMillis());
                 response.put("expiresIn", 3600); // 1 hour
-                
+
                 return ApiResponse.success(response);
             } catch (Exception localAuthEx) {
                 logger.error("Local authentication also failed", localAuthEx);
-                return ApiResponse.error("Authentication failed: " + e.getMessage(), 
+                return ApiResponse.error("Authentication failed: " + e.getMessage(),
                         HttpStatus.UNAUTHORIZED.value());
             }
         }

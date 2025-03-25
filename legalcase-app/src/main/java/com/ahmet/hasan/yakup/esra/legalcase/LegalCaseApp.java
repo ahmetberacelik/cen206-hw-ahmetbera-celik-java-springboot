@@ -22,16 +22,16 @@ public class LegalCaseApp {
         SpringApplication.run(LegalCaseApp.class, args);
         logger.info("Legal Case Management System Application started successfully");
     }
-    
+
     /**
-     * Konsol uygulamasını manuel başlatmak istiyorsanız bu profili aktifleştirin:
+     * If you want to manually start the console application, activate this profile:
      * -Dspring.profiles.active=console
      */
     @Bean
     @Profile("console")
     public CommandLineRunner runConsoleMode() {
         return args -> {
-            logger.info("Konsol uygulaması modu aktifleştirildi. Konsol uygulaması otomatik olarak başlatılacak.");
+            logger.info("Console application mode activated. Console application will start automatically.");
         };
     }
 }

@@ -41,7 +41,7 @@ public class DocumentService implements IDocumentService {
         this.documentRepository = documentRepository;
         this.caseRepository = caseRepository;
 
-        // Yükleme dizinini oluştur
+        // Create installation directory
         File directory = new File(uploadDir);
         if (!directory.exists()) {
             directory.mkdirs();
@@ -65,7 +65,7 @@ public class DocumentService implements IDocumentService {
     public ApiResponse<Document> uploadDocument(Long caseId, String title, DocumentType type, MultipartFile file) {
         logger.info("Uploading new document for case ID: {}", caseId);
 
-        // Case'i kontrol et
+        // Check Case
         Optional<Case> caseOptional = caseRepository.findById(caseId);
         if (caseOptional.isEmpty()) {
             return ApiResponse.error("Case not found with ID: " + caseId,
@@ -73,15 +73,15 @@ public class DocumentService implements IDocumentService {
         }
 
         try {
-            // Dosya adını temizle ve benzersiz hale getir
+            // Clean up the file name and make it unique
             String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
             String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
 
-            // Dosyayı diske kaydet
+            // Save file to disk
             Path targetLocation = Paths.get(uploadDir).resolve(uniqueFilename);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
-            // Document nesnesini oluştur
+            // Create the Document object
             Document document = new Document();
             document.setTitle(title);
             document.setType(type);
@@ -128,7 +128,7 @@ public class DocumentService implements IDocumentService {
     @Transactional(readOnly = true)
     public ApiResponse<List<Document>> getDocumentsByCaseId(Long caseId) {
         logger.info("Getting documents by case ID: {}", caseId);
-        // İlk olarak case'in varlığını kontrol et
+        // First check the existence of case
         if (!caseRepository.existsById(caseId)) {
             return ApiResponse.error("Case not found with ID: " + caseId,
                     HttpStatus.NOT_FOUND.value());
@@ -168,7 +168,7 @@ public class DocumentService implements IDocumentService {
             documentToUpdate.setTitle(document.getTitle());
             documentToUpdate.setType(document.getType());
 
-            // Dosya içeriği güncellenmiyorsa diğer alanları koru
+            // Preserve other fields if file content is not updated
             if (document.getCse() != null) {
                 documentToUpdate.setCse(document.getCse());
             }
@@ -194,14 +194,14 @@ public class DocumentService implements IDocumentService {
 
         try {
             Document document = documentOptional.get();
-            // Dosyayı diskten silme
+            // Delete from disk
             String filePath = document.getFilePath();
             if (filePath != null) {
                 Path path = Paths.get(filePath);
                 Files.deleteIfExists(path);
             }
 
-            // Veritabanından silme
+            // Delete from database
             documentRepository.deleteById(id);
             return ApiResponse.success(null);
         } catch (IOException e) {

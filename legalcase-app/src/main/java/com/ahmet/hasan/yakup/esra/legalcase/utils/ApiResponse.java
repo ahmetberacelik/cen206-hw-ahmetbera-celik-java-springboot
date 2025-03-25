@@ -9,7 +9,7 @@ public class ApiResponse<T> {
     private List<String> errorMessages;
     private int errorCode;
 
-    // Başarılı yanıt için factory metodu
+    // Factory method for successful response
     public static <T> ApiResponse<T> success(T data) {
         ApiResponse<T> response = new ApiResponse<>();
         response.success = true;
@@ -17,7 +17,7 @@ public class ApiResponse<T> {
         return response;
     }
 
-    // Hata yanıtı için factory metodu
+    // Factory method for error response
     public static <T> ApiResponse<T> error(List<String> errorMessages, int errorCode) {
         ApiResponse<T> response = new ApiResponse<>();
         response.success = false;
@@ -26,12 +26,12 @@ public class ApiResponse<T> {
         return response;
     }
 
-    // Tek hata mesajı için kolaylık metodu
+    // Convenience method for single error message
     public static <T> ApiResponse<T> error(String errorMessage, int errorCode) {
         return error(Collections.singletonList(errorMessage), errorCode);
     }
 
-    // Getter ve setter'lar
+    // Getters and setters
     public boolean isSuccess() {
         return success;
     }

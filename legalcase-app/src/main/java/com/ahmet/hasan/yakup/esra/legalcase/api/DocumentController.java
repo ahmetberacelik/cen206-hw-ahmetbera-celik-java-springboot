@@ -113,19 +113,19 @@ public class DocumentController {
     public ResponseEntity<?> getDocumentContent(@PathVariable Long id) {
         logger.info("REST request to download document content with ID: {}", id);
 
-        // İlk olarak belgeyi al
+        // First get the document
         ApiResponse<Document> documentResponse = IDocumentService.getDocumentById(id);
         if (!documentResponse.isSuccess()) {
             return new ResponseEntity<>(documentResponse, HttpStatus.valueOf(documentResponse.getErrorCode()));
         }
 
-        // Belge içeriğini al
+        // Get document content
         ApiResponse<byte[]> contentResponse = IDocumentService.getDocumentContent(id);
         if (!contentResponse.isSuccess()) {
             return new ResponseEntity<>(contentResponse, HttpStatus.valueOf(contentResponse.getErrorCode()));
         }
 
-        // Başarılı durumda belge içeriğini indir
+        // Download document content on success
         Document document = documentResponse.getData();
         ByteArrayResource resource = new ByteArrayResource(contentResponse.getData());
 

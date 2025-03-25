@@ -12,13 +12,13 @@ import java.time.LocalDateTime;
 @Setter
 public class Hearing extends BaseEntity {
 
-    // Parametresiz constructor
+    // Parameterless constructor
     public Hearing() {
         super();
         this.status = HearingStatus.SCHEDULED;
     }
 
-    // Parametreli constructor
+    // Parameterized constructor
     public Hearing(Long id, Case cse, LocalDateTime hearingDate, String judge) {
         super(id);
         this.cse = cse;

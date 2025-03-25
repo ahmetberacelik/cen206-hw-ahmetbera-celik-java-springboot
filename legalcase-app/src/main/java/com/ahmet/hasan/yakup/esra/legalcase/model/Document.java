@@ -43,7 +43,7 @@ public class Document extends BaseEntity {
     private Long fileSize;
 
 
-    // Parametreli constructor (case ile)
+    // Parameterized constructor (case ile)
     public Document(Long id, String title, DocumentType type, Case cse) {
         super(id);
         this.title = title;

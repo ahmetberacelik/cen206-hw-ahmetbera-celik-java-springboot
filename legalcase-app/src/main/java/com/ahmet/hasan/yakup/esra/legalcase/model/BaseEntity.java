@@ -40,5 +40,5 @@ public abstract class BaseEntity {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Equals ve hashCode metodları değişmeden kalabilir
+    // Equals and hashCode methods can remain unchanged
 }

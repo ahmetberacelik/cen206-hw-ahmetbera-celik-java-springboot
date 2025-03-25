@@ -35,7 +35,7 @@ public class Client extends BaseEntity {
     @ManyToMany(mappedBy = "clients")
     private List<Case> cases = new ArrayList<>();
 
-    // Helper metodlar
+    //Helper methods
     public void addCase(Case cse) {
         if (!this.cases.contains(cse)) {
             this.cases.add(cse);

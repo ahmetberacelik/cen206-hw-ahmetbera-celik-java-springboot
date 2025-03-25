@@ -21,7 +21,7 @@ public class Case extends BaseEntity {
         this.documents = new ArrayList<>();
         this.status = CaseStatus.NEW;
     }
-    // Temel constructor
+    // Base constructor
     public Case(Long id, String caseNumber, String title, CaseType type) {
         super(id);
         this.caseNumber = caseNumber;
@@ -62,7 +62,7 @@ public class Case extends BaseEntity {
     private List<Document> documents = new ArrayList<>();
 
 
-    // Helper metodlar
+    // Helper methods
     public void addClient(Client client) {
         if (!this.clients.contains(client)) {
             this.clients.add(client);

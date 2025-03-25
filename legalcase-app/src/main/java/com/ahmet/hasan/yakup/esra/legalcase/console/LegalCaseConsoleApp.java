@@ -184,9 +184,9 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
         System.out.println("2. View Document by ID");
         System.out.println("3. View Documents for a Case");
         System.out.println("4. Search Documents by Title");
-        System.out.println("5. Upload New Document");
+        System.out.println("5. Create New Document");
         System.out.println("6. Update Document Details");
-        System.out.println("7. Download Document");
+        System.out.println("7. View Document Content");
         System.out.println("8. Delete Document");
         System.out.println("9. Return to Main Menu");
         System.out.print("Your choice: ");
@@ -1511,9 +1511,9 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
                 case 2 -> viewDocumentById();
                 case 3 -> viewDocumentsForCase();
                 case 4 -> searchDocumentsByTitle();
-                case 5 -> uploadNewDocument();
+                case 5 -> createNewDocument();
                 case 6 -> updateDocumentDetails();
-                case 7 -> downloadDocument();
+                case 7 -> viewDocumentContent();
                 case 8 -> deleteDocument();
                 case 9 -> returnToMain = true;
                 default -> System.out.println("Invalid selection!");
@@ -1606,27 +1606,28 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
         scanner.nextLine();
     }
 
-    private void uploadNewDocument() {
-        System.out.println("\n--- Upload New Document ---");
+    private void createNewDocument() {
+        System.out.println("\n--- Create New Document ---");
 
-        // First select a case
+        // Case ID'yi sor
         System.out.print("Enter Case ID for the document: ");
         Long caseId;
         try {
             caseId = Long.parseLong(scanner.nextLine());
 
-            // Verify the case exists
+            // Dava var mı diye kontrol et
             ApiResponse<Case> caseResponse = caseService.getCaseById(caseId);
             if (!caseResponse.isSuccess()) {
-                System.out.println("Case not found: " + (caseResponse.getErrorMessages() != null ? caseResponse.getErrorMessages().get(0) : "Unknown error"));
+                System.out.println("Case not found: " + (caseResponse.getErrorMessages() != null ?
+                        caseResponse.getErrorMessages().get(0) : "Unknown error"));
                 return;
             }
 
-            // Get document title
+            // Belge başlığını al
             System.out.print("Enter Document Title: ");
             String title = scanner.nextLine();
 
-            // Get document type
+            // Belge türünü al
             System.out.println("Select Document Type:");
             System.out.println("1. CONTRACT");
             System.out.println("2. EVIDENCE");
@@ -1649,45 +1650,31 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
                 }
             }
 
-            // Get file path (for console app)
-            System.out.print("Enter the full path to the file: ");
-            String filePath = scanner.nextLine();
-
-            // In a console app, we would typically create a custom implementation
-            // to read the file from the path and handle it as a MultipartFile
-            // This is just a simplified example since we don't have direct MultipartFile support in console
-            File file = new File(filePath);
-            if (!file.exists() || !file.isFile()) {
-                System.out.println("File not found or is not a regular file: " + filePath);
-                return;
+            // İçerik için sor (dosya yolu yerine)
+            System.out.println("Enter document content (type 'END' on a new line to finish):");
+            StringBuilder contentBuilder = new StringBuilder();
+            String line;
+            while (!(line = scanner.nextLine()).equals("END")) {
+                contentBuilder.append(line).append("\n");
             }
+            String content = contentBuilder.toString();
 
-            // For now, just create a document without actual file upload (simplified for console app)
-            Document newDocument = new Document();
-            newDocument.setTitle(title);
-            newDocument.setType(documentType);
+            // Belgeyi oluştur
+            ApiResponse<Document> createResponse = documentService.createDocumentWithContent(
+                    caseId, title, documentType, content);
 
-            // Get the case and set it
-            Case caseObj = caseResponse.getData();
-            newDocument.setCse(caseObj);
-
-            // Set file path
-            newDocument.setFilePath(filePath);
-
-            // Create the document
-            ApiResponse<Document> createResponse = documentService.createDocument(newDocument);
             if (createResponse.isSuccess()) {
                 System.out.println("Document created successfully with ID: " + createResponse.getData().getId());
-                System.out.println("Note: In a real application, the file would be uploaded to the server.");
             } else {
-                System.out.println("Failed to create document: " + (createResponse.getErrorMessages() != null ? createResponse.getErrorMessages().get(0) : "Unknown error"));
+                System.out.println("Failed to create document: " + (createResponse.getErrorMessages() != null ?
+                        createResponse.getErrorMessages().get(0) : "Unknown error"));
             }
 
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format. Please enter a valid number.");
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
-            logger.error("Error uploading new document: ", e);
+            logger.error("Error creating new document: ", e);
         }
 
         System.out.println("\nPress Enter to continue...");
@@ -1753,6 +1740,19 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
                 }
             }
 
+            // İçeriği güncellemek istiyor mu diye sor
+            System.out.print("Do you want to update the document content? (Y/N): ");
+            String updateContent = scanner.nextLine();
+            if (updateContent.equalsIgnoreCase("Y")) {
+                System.out.println("Enter new document content (type 'END' on a new line to finish):");
+                StringBuilder contentBuilder = new StringBuilder();
+                String line;
+                while (!(line = scanner.nextLine()).equals("END")) {
+                    contentBuilder.append(line).append("\n");
+                }
+                documentToUpdate.setContent(contentBuilder.toString());
+            }
+
             // Update the document
             ApiResponse<Document> updateResponse = documentService.updateDocument(id, documentToUpdate);
             if (updateResponse.isSuccess()) {
@@ -1772,52 +1772,34 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
         scanner.nextLine();
     }
 
-    private void downloadDocument() {
-        System.out.println("\n--- Download Document ---");
-        System.out.print("Enter Document ID to download: ");
+    private void viewDocumentContent() {
+        System.out.println("\n--- View Document Content ---");
+        System.out.print("Enter Document ID: ");
 
         try {
             Long id = Long.parseLong(scanner.nextLine());
 
-            // Verify the document exists
+            // Belgenin var olup olmadığını kontrol et
             ApiResponse<Document> getResponse = documentService.getDocumentById(id);
             if (!getResponse.isSuccess()) {
-                System.out.println("Document not found: " + (getResponse.getErrorMessages() != null ? getResponse.getErrorMessages().get(0) : "Unknown error"));
+                System.out.println("Document not found: " + (getResponse.getErrorMessages() != null ?
+                        getResponse.getErrorMessages().get(0) : "Unknown error"));
                 return;
             }
 
             Document document = getResponse.getData();
 
-            // Get document content
-            ApiResponse<byte[]> contentResponse = documentService.getDocumentContent(id);
-            if (!contentResponse.isSuccess()) {
-                System.out.println("Failed to get document content: " + (contentResponse.getErrorMessages() != null ? contentResponse.getErrorMessages().get(0) : "Unknown error"));
-                return;
-            }
-
-            // Ask where to save the file
-            System.out.print("Enter the path where you want to save the file: ");
-            String savePath = scanner.nextLine();
-
-            // Create output file path
-            Path outputPath;
-            if (savePath.endsWith(File.separator)) {
-                outputPath = Paths.get(savePath + document.getTitle());
-            } else {
-                outputPath = Paths.get(savePath);
-            }
-
-            // Save the file
-            Files.write(outputPath, contentResponse.getData());
-            System.out.println("Document downloaded successfully to: " + outputPath);
+            System.out.println("\n=== Document Content ===");
+            System.out.println("Title: " + document.getTitle());
+            System.out.println("Type: " + document.getType());
+            System.out.println("Content:\n" + document.getContent());
+            System.out.println("=== End of Document ===");
 
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format. Please enter a valid number.");
-        } catch (IOException e) {
-            System.out.println("Error writing file: " + e.getMessage());
         } catch (Exception e) {
             System.out.println("An error occurred: " + e.getMessage());
-            logger.error("Error downloading document: ", e);
+            logger.error("Error viewing document content: ", e);
         }
 
         System.out.println("\nPress Enter to continue...");
@@ -1873,20 +1855,27 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
         }
 
         System.out.println("------------------------------------------------------------------------");
-        System.out.printf("%-5s | %-30s | %-12s | %-15s | %-10s%n",
-                "ID", "Title", "Type", "Case Number", "Size (KB)");
+        System.out.printf("%-5s | %-30s | %-12s | %-15s | %-20s%n",
+                "ID", "Title", "Type", "Case Number", "Content Preview");
         System.out.println("------------------------------------------------------------------------");
 
         for (Document document : documents) {
             String caseNumber = (document.getCse() != null) ? document.getCse().getCaseNumber() : "N/A";
-            String fileSize = (document.getFileSize() != null) ? String.format("%.2f", document.getFileSize() / 1024.0) : "N/A";
+            String contentPreview = "N/A";
+            if (document.getContent() != null && !document.getContent().isEmpty()) {
+                contentPreview = document.getContent().length() > 20 ?
+                        document.getContent().substring(0, 17) + "..." :
+                        document.getContent();
+                // Yeni satırları kaldır
+                contentPreview = contentPreview.replace("\n", " ");
+            }
 
-            System.out.printf("%-5d | %-30s | %-12s | %-15s | %-10s%n",
+            System.out.printf("%-5d | %-30s | %-12s | %-15s | %-20s%n",
                     document.getId(),
                     truncateString(document.getTitle(), 30),
                     document.getType(),
                     truncateString(caseNumber, 15),
-                    fileSize);
+                    truncateString(contentPreview, 20));
         }
 
         System.out.println("------------------------------------------------------------------------");
@@ -1908,10 +1897,20 @@ public class LegalCaseConsoleApp implements CommandLineRunner {
                         ", Number: " + document.getCse().getCaseNumber() +
                         ", Title: " + document.getCse().getTitle()
                 : "N/A"));
-        System.out.println("File Path: " + document.getFilePath());
-        System.out.println("Content Type: " + document.getContentType());
-        System.out.println("File Size: " + ((document.getFileSize() != null) ?
-                String.format("%.2f KB", document.getFileSize() / 1024.0) : "N/A"));
+
+        // İçerik önizlemesi göster
+        if (document.getContent() != null && !document.getContent().isEmpty()) {
+            String contentPreview = document.getContent().length() > 100 ?
+                    document.getContent().substring(0, 97) + "..." :
+                    document.getContent();
+            // Yeni satırları koruyarak göster
+            System.out.println("Content Preview: \n----------");
+            System.out.println(contentPreview);
+            System.out.println("----------");
+        } else {
+            System.out.println("Content: <empty>");
+        }
+
         System.out.println("Created At: " + document.getCreatedAt());
         System.out.println("Updated At: " + document.getUpdatedAt());
         System.out.println("------------------------------------------------------------");

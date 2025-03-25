@@ -13,25 +13,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @Transactional
 public class DocumentService implements IDocumentService {
 
     private static final Logger logger = LoggerFactory.getLogger(DocumentService.class);
-    private final String uploadDir = "uploads/documents";
 
     private final DocumentRepository documentRepository;
     private final CaseRepository caseRepository;
@@ -40,12 +30,6 @@ public class DocumentService implements IDocumentService {
     public DocumentService(DocumentRepository documentRepository, CaseRepository caseRepository) {
         this.documentRepository = documentRepository;
         this.caseRepository = caseRepository;
-
-        // Create installation directory
-        File directory = new File(uploadDir);
-        if (!directory.exists()) {
-            directory.mkdirs();
-        }
     }
 
     @Override
@@ -62,8 +46,8 @@ public class DocumentService implements IDocumentService {
     }
 
     @Override
-    public ApiResponse<Document> uploadDocument(Long caseId, String title, DocumentType type, MultipartFile file) {
-        logger.info("Uploading new document for case ID: {}", caseId);
+    public ApiResponse<Document> createDocumentWithContent(Long caseId, String title, DocumentType type, String content) {
+        logger.info("Creating new document with content for case ID: {}", caseId);
 
         // Check Case
         Optional<Case> caseOptional = caseRepository.findById(caseId);
@@ -73,29 +57,15 @@ public class DocumentService implements IDocumentService {
         }
 
         try {
-            // Clean up the file name and make it unique
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
-            String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
-
-            // Save file to disk
-            Path targetLocation = Paths.get(uploadDir).resolve(uniqueFilename);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-
             // Create the Document object
             Document document = new Document();
             document.setTitle(title);
             document.setType(type);
             document.setCse(caseOptional.get());
-            document.setFilePath(targetLocation.toString());
-            document.setContentType(file.getContentType());
-            document.setFileSize(file.getSize());
+            document.setContent(content);
 
             Document savedDocument = documentRepository.save(document);
             return ApiResponse.success(savedDocument);
-        } catch (IOException e) {
-            logger.error("Error uploading document file: {}", e.getMessage(), e);
-            return ApiResponse.error("Failed to upload document: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value());
         } catch (Exception e) {
             logger.error("Error saving document: {}", e.getMessage(), e);
             return ApiResponse.error("Failed to save document: " + e.getMessage(),
@@ -168,7 +138,12 @@ public class DocumentService implements IDocumentService {
             documentToUpdate.setTitle(document.getTitle());
             documentToUpdate.setType(document.getType());
 
-            // Preserve other fields if file content is not updated
+            // Update content if provided
+            if (document.getContent() != null) {
+                documentToUpdate.setContent(document.getContent());
+            }
+
+            // Preserve other fields if case is not updated
             if (document.getCse() != null) {
                 documentToUpdate.setCse(document.getCse());
             }
@@ -193,45 +168,12 @@ public class DocumentService implements IDocumentService {
         }
 
         try {
-            Document document = documentOptional.get();
-            // Delete from disk
-            String filePath = document.getFilePath();
-            if (filePath != null) {
-                Path path = Paths.get(filePath);
-                Files.deleteIfExists(path);
-            }
-
             // Delete from database
             documentRepository.deleteById(id);
             return ApiResponse.success(null);
-        } catch (IOException e) {
-            logger.error("Error deleting document file: {}", e.getMessage(), e);
-            return ApiResponse.error("Failed to delete document file: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value());
         } catch (Exception e) {
             logger.error("Error deleting document: {}", e.getMessage(), e);
             return ApiResponse.error("Failed to delete document: " + e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR.value());
-        }
-    }
-
-    @Override
-    public ApiResponse<byte[]> getDocumentContent(Long id) {
-        logger.info("Getting document content for ID: {}", id);
-
-        Optional<Document> documentOptional = documentRepository.findById(id);
-        if (documentOptional.isEmpty() || documentOptional.get().getFilePath() == null) {
-            return ApiResponse.error("Document not found or file path is missing",
-                    HttpStatus.NOT_FOUND.value());
-        }
-
-        try {
-            Path path = Paths.get(documentOptional.get().getFilePath());
-            byte[] content = Files.readAllBytes(path);
-            return ApiResponse.success(content);
-        } catch (IOException e) {
-            logger.error("Error reading document file: {}", e.getMessage(), e);
-            return ApiResponse.error("Failed to read document file: " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
     }

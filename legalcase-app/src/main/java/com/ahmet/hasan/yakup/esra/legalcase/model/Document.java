@@ -30,17 +30,8 @@ public class Document extends BaseEntity {
     @JoinColumn(name = "case_id")
     private Case cse;
 
-    // Add file path for document storage
-    @Column(name = "file_path")
-    private String filePath;
-
-    // Add file content type
-    @Column(name = "content_type")
-    private String contentType;
-
-    // Add file size
-    @Column(name = "file_size")
-    private Long fileSize;
+    @Column(columnDefinition = "TEXT")
+    private String content;
 
 
     // Parameterized constructor (case ile)

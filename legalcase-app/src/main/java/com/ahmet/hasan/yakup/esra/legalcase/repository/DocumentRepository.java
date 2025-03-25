@@ -15,9 +15,5 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
 
     List<Document> findByTitleContainingIgnoreCase(String title);
 
-    List<Document> findByContentTypeContaining(String contentType);
-
-    List<Document> findByFileSizeGreaterThan(Long minSize);
-
-    List<Document> findByFileSizeLessThan(Long maxSize);
+    List<Document> findByContentContaining(String text);
 }

@@ -47,7 +47,7 @@ public class Case extends BaseEntity {
     @Column(nullable = false)
     private CaseStatus status;
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "case_client",
             joinColumns = @JoinColumn(name = "case_id"),
@@ -55,10 +55,10 @@ public class Case extends BaseEntity {
     )
     private List<Client> clients = new ArrayList<>();
 
-    @OneToMany(mappedBy = "cse", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "cse", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Hearing> hearings = new ArrayList<>();
 
-    @OneToMany(mappedBy = "cse", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "cse", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Document> documents = new ArrayList<>();
 
 

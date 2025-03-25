@@ -32,7 +32,7 @@ public class Client extends BaseEntity {
     @Column(unique = true)
     private String email;
 
-    @ManyToMany(mappedBy = "clients")
+    @ManyToMany(mappedBy = "clients", fetch = FetchType.EAGER)
     private List<Case> cases = new ArrayList<>();
 
     //Helper methods

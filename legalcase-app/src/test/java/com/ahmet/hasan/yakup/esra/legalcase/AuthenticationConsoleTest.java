@@ -7,9 +7,10 @@ import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IUserAuthenticationService;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IUserService;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 import org.slf4j.Logger;
 
 import java.io.ByteArrayOutputStream;
@@ -20,7 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class AuthenticationConsoleTest {
@@ -35,7 +38,7 @@ public class AuthenticationConsoleTest {
     private Logger mockLogger;
     private AuthenticationConsole authenticationConsole;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         System.setOut(new PrintStream(outContent));
 
@@ -56,7 +59,7 @@ public class AuthenticationConsoleTest {
         authenticationConsole = new AuthenticationConsole(authService, userService, utils);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         System.setOut(originalOut);
     }
@@ -148,7 +151,7 @@ public class AuthenticationConsoleTest {
         authenticationConsole = createConsoleWithInput(input);
 
         // Mocking getUserChoice for role selection
-        try (var mockedStatic = mockStatic(ConsoleUtils.class)) {
+        try (MockedStatic<ConsoleUtils> mockedStatic = mockStatic(ConsoleUtils.class)) {
             mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(), eq(5))).thenReturn(5);
 
             // Setup mock responses
@@ -180,7 +183,7 @@ public class AuthenticationConsoleTest {
         authenticationConsole = createConsoleWithInput(input);
 
         // Mocking getUserChoice for role selection
-        try (var mockedStatic = mockStatic(ConsoleUtils.class)) {
+        try (MockedStatic<ConsoleUtils> mockedStatic = mockStatic(ConsoleUtils.class)) {
             mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(), eq(5))).thenReturn(5);
 
             // Setup mock responses

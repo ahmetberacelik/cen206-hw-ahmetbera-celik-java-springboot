@@ -12,9 +12,9 @@ import com.ahmet.hasan.yakup.esra.legalcase.model.enums.HearingStatus;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.ICaseService;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IHearingService;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 
@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class HearingManagementConsoleTest {
@@ -41,7 +41,7 @@ public class HearingManagementConsoleTest {
     private Logger mockLogger;
     private HearingManagementConsole hearingManagementConsole;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         System.setOut(new PrintStream(outContent));
 
@@ -58,7 +58,7 @@ public class HearingManagementConsoleTest {
         hearingManagementConsole = new HearingManagementConsole(hearingService, caseService, utils);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         System.setOut(originalOut);
     }

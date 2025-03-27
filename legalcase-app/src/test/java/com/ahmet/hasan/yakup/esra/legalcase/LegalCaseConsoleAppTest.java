@@ -7,9 +7,9 @@ import com.ahmet.hasan.yakup.esra.legalcase.console.AuthenticationConsole.LoginR
 import com.ahmet.hasan.yakup.esra.legalcase.model.User;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.*;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -21,7 +21,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Scanner;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class LegalCaseConsoleAppTest {
@@ -65,7 +65,7 @@ public class LegalCaseConsoleAppTest {
     @InjectMocks
     private LegalCaseConsoleApp consoleApp;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         MockitoAnnotations.openMocks(this);
         System.setOut(new PrintStream(outContent));
@@ -78,7 +78,7 @@ public class LegalCaseConsoleAppTest {
         setPrivateField(consoleApp, "documentConsole", documentConsole);
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         System.setOut(originalOut);
     }

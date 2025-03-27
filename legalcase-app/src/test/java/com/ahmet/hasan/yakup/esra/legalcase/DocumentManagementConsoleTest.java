@@ -2,8 +2,10 @@ package com.ahmet.hasan.yakup.esra.legalcase;
 
 import com.ahmet.hasan.yakup.esra.legalcase.console.ConsoleUtils;
 import com.ahmet.hasan.yakup.esra.legalcase.console.DocumentManagementConsole;
+import com.ahmet.hasan.yakup.esra.legalcase.console.LegalCaseConsoleApp;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Document;
+import com.ahmet.hasan.yakup.esra.legalcase.model.User;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseType;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.DocumentType;
@@ -384,4 +386,159 @@ public class DocumentManagementConsoleTest {
         String output = outContent.toString();
         assertTrue(output.contains("Document deletion cancelled"));
     }
+
+    @Test
+    public void MenuTestFalse() {
+        // Setup input with cancellation
+        documentManagementConsole = createConsoleWithInput("1\n\n2\n2\n\n3\n3\n\n4\nasd\n\n5\n5\n\n6\n6\n\n7\n7\n\n8\n8\n\n9\n\n");
+
+        documentManagementConsole.showMenu(new User());
+
+        // Check output contains expected content
+        String output = outContent.toString();
+        assertFalse(output.contains("Document deletion cancelled"));
+    }
+
+    @Test
+    public void testViewDocumentsForCaseSuccess() {
+        // Setup input
+        String input = "1\n";  // Case ID
+
+        // Create a Scanner with the input
+        Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+
+        // Create a mock ConsoleUtils that will be used by our console
+        ConsoleUtils consoleUtils = mock(ConsoleUtils.class);
+        when(consoleUtils.getScanner()).thenReturn(scanner);
+        when(consoleUtils.getLogger()).thenReturn(mockLogger);
+
+        // Use the same mock for truncateString as in other tests
+        when(consoleUtils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
+            String str = invocation.getArgument(0);
+            int maxLength = invocation.getArgument(1);
+            if (str == null) {
+                return "N/A";
+            }
+            if (str.length() <= maxLength) {
+                return str;
+            }
+            return str.substring(0, maxLength - 3) + "...";
+        });
+
+        // Create the console with our mocked dependencies
+        DocumentManagementConsole console = new DocumentManagementConsole(documentService, caseService, consoleUtils);
+
+        // Setup mock response - create case and some documents
+        Case testCase = new Case(1L, "C-001", "Test Case", CaseType.CIVIL);
+        testCase.setStatus(CaseStatus.ACTIVE);
+
+        List<Document> testDocuments = new ArrayList<>();
+        Document doc1 = new Document(1L, "Contract A", DocumentType.CONTRACT, testCase);
+        Document doc2 = new Document(2L, "Evidence B", DocumentType.EVIDENCE, testCase);
+        testDocuments.add(doc1);
+        testDocuments.add(doc2);
+
+        // Mock service response
+        when(documentService.getDocumentsByCaseId(1L)).thenReturn(ApiResponse.success(testDocuments));
+
+        // Execute method
+        console.viewDocumentsForCase();
+
+        // Verify service call
+        verify(documentService).getDocumentsByCaseId(1L);
+
+        // Verify waitForEnter was called to pause the console
+        verify(consoleUtils).waitForEnter();  // Verify against consoleUtils, not utils
+
+        // Check output contains expected content
+        String output = outContent.toString();
+        assertTrue(output.contains("View Documents for a Case"));
+        assertTrue(output.contains("Total documents: 2"));  // Check that we show document count
+
+        // Verify both documents are displayed
+        assertTrue(output.contains("Contract A"));
+        assertTrue(output.contains("Evidence B"));
+    }
+
+    @Test
+    public void testUpdateDocumentDetailsChangeDocumentType() {
+        // Setup input sequence: document ID, new title (empty to keep current),
+        // document type selection (2 for EVIDENCE), no content update
+        String input = "1\n\n2\nN\n";
+
+        // Create a Scanner with the input
+        Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+
+        // Create a mock ConsoleUtils
+        ConsoleUtils consoleUtils = mock(ConsoleUtils.class);
+        when(consoleUtils.getScanner()).thenReturn(scanner);
+        when(consoleUtils.getLogger()).thenReturn(mockLogger);
+
+        // Use the same mock for truncateString as in other tests
+        when(consoleUtils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
+            String str = invocation.getArgument(0);
+            int maxLength = invocation.getArgument(1);
+            if (str == null) {
+                return "N/A";
+            }
+            if (str.length() <= maxLength) {
+                return str;
+            }
+            return str.substring(0, maxLength - 3) + "...";
+        });
+
+        // Create the console with our mocked dependencies
+        DocumentManagementConsole console = new DocumentManagementConsole(documentService, caseService, consoleUtils);
+
+        // Create an existing document with CONTRACT type
+        Case testCase = new Case(1L, "C-001", "Test Case", CaseType.CIVIL);
+        Document existingDocument = new Document(1L, "Original Title", DocumentType.CONTRACT, testCase);
+        existingDocument.setContent("Original content");
+
+        // Create the updated document that should be returned by the service
+        Document updatedDocument = new Document(1L, "Original Title", DocumentType.EVIDENCE, testCase);
+        updatedDocument.setContent("Original content");
+
+        // Setup mock responses
+        when(documentService.getDocumentById(1L)).thenReturn(ApiResponse.success(existingDocument));
+
+        // The update service call should receive a document with EVIDENCE type
+        when(documentService.updateDocument(eq(1L), argThat(doc -> doc.getType() == DocumentType.EVIDENCE)))
+                .thenReturn(ApiResponse.success(updatedDocument));
+
+        // Execute method
+        console.updateDocumentDetails();
+
+        // Verify service calls
+        verify(documentService).getDocumentById(1L);
+        verify(documentService).updateDocument(eq(1L), argThat(doc ->
+                doc.getType() == DocumentType.EVIDENCE &&
+                        doc.getTitle().equals("Original Title") &&
+                        doc.getContent().equals("Original content")));
+
+        // Verify waitForEnter was called
+        verify(consoleUtils).waitForEnter();
+
+        // Check output contains expected content
+        String output = outContent.toString();
+        assertTrue(output.contains("Update Document Details"));
+        assertTrue(output.contains("Current Document Type: " + DocumentType.CONTRACT));
+        assertTrue(output.contains("Document updated successfully"));
+    }
+
+//    @Test
+//    public void MenuTestTrue() {
+//
+//        createTestDocuments();
+//
+//        // Setup input with cancellation
+//        documentManagementConsole = createConsoleWithInput("");
+//
+//        documentManagementConsole.showMenu(new User());
+//
+//        // Check output contains expected content
+//        String output = outContent.toString();
+//        assertFalse(output.contains("Document deletion cancelled"));
+//    }
+
 }

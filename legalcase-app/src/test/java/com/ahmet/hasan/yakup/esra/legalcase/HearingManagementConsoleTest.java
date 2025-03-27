@@ -6,6 +6,7 @@ import com.ahmet.hasan.yakup.esra.legalcase.console.ConsoleUtils;
 import com.ahmet.hasan.yakup.esra.legalcase.console.HearingManagementConsole;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Hearing;
+import com.ahmet.hasan.yakup.esra.legalcase.model.User;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseType;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.HearingStatus;
@@ -299,5 +300,130 @@ public class HearingManagementConsoleTest {
         // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Hearing deletion cancelled"));
+    }
+
+    @Test
+    public void testMenuTestTrue() {
+        // Prepare a comprehensive input sequence that will exercise all menu options
+        String input =
+                "1\n" +  // View All Hearings
+                        "2\n1\n" +  // View Hearing by ID
+                        "3\n1\n" +  // View Hearings for a Case
+                        "4\n" +  // View Upcoming Hearings
+
+                        // Schedule New Hearing (full interaction)
+                        "5\n1\n" +  // Case ID
+                        "2025-04-15 10:00\n" +  // Hearing Date
+                        "Judge Smith\n" +  // Judge Name
+                        "Courtroom A\n" +  // Location
+                        "Test Hearing Notes\n" +  // Notes
+
+                        // Reschedule Hearing
+                        "6\n1\n" +  // Hearing ID
+                        "2025-05-20 14:30\n" +  // New Date
+
+                        // Update Hearing Status
+                        "7\n1\n" +  // Hearing ID
+                        "2\n" +  // COMPLETED Status
+
+                        // Delete Hearing (with confirmation)
+                        "8\n1\nY\n" +  // Hearing ID and Confirmation
+
+                        "9\n";  // Exit
+
+        hearingManagementConsole = createConsoleWithInput(input);
+
+        // Setup mock responses for each interaction
+        Case testCase = new Case(1L, "C-001", "Test Case", CaseType.CIVIL);
+        List<Hearing> testHearings = createTestHearings();
+        Hearing testHearing = testHearings.get(0);
+
+        // Mock responses for getAllHearings
+        when(hearingService.getAllHearings())
+                .thenReturn(ApiResponse.success(testHearings));
+
+        // Mock responses for getHearingById
+        when(hearingService.getHearingById(1L))
+                .thenReturn(ApiResponse.success(testHearing));
+
+        // Mock responses for getHearingsByCaseId
+        when(hearingService.getHearingsByCaseId(1L))
+                .thenReturn(ApiResponse.success(testHearings));
+
+        // Mock responses for getUpcomingHearings
+        when(hearingService.getUpcomingHearings())
+                .thenReturn(ApiResponse.success(testHearings));
+
+        // Mock responses for case service in scheduleHearing
+        when(caseService.getCaseById(1L))
+                .thenReturn(ApiResponse.success(testCase));
+
+        // Mock hearing scheduling
+        Hearing newHearing = new Hearing();
+        newHearing.setId(5L);
+        when(hearingService.scheduleHearing(
+                eq(1L),
+                any(LocalDateTime.class),
+                eq("Judge Smith"),
+                eq("Courtroom A"),
+                eq("Test Hearing Notes")
+        )).thenReturn(ApiResponse.success(newHearing));
+
+        // Mock hearing rescheduling
+        when(hearingService.rescheduleHearing(
+                eq(1L),
+                any(LocalDateTime.class)
+        )).thenReturn(ApiResponse.success(testHearing));
+
+        // Mock hearing status update
+        when(hearingService.updateHearingStatus(
+                eq(1L),
+                eq(HearingStatus.COMPLETED)
+        )).thenReturn(ApiResponse.success(testHearing));
+
+        // Mock hearing deletion
+        when(hearingService.deleteHearing(1L))
+                .thenReturn(ApiResponse.success(null));
+
+        // Execute the method with a mock user
+        hearingManagementConsole.showMenu(new User());
+
+        // Verify interactions for all menu options
+        verify(hearingService).getAllHearings();
+        verify(hearingService).getHearingsByCaseId(1L);
+        verify(hearingService).getUpcomingHearings();
+        verify(caseService).getCaseById(1L);
+        verify(hearingService).scheduleHearing(
+                eq(1L),
+                any(LocalDateTime.class),
+                eq("Judge Smith"),
+                eq("Courtroom A"),
+                eq("Test Hearing Notes")
+        );
+        verify(hearingService).rescheduleHearing(
+                eq(1L),
+                any(LocalDateTime.class)
+        );
+        verify(hearingService).updateHearingStatus(
+                eq(1L),
+                eq(HearingStatus.COMPLETED)
+        );
+        verify(hearingService).deleteHearing(1L);
+    }
+
+    @Test
+    public void MenuTestFalse() {
+        // Prepare input with cancellation
+        hearingManagementConsole = createConsoleWithInput("1\n\n2\n2\n\n3\n2\n\n4\n\n5\n2\n\n6\n2\n\n7\n2\n\n8\n2\n\n9\n\n");
+
+        // Mock responses
+        Hearing testHearing = createTestHearings().get(0);
+        when(hearingService.getHearingById(1L)).thenReturn(ApiResponse.success(testHearing));
+
+        // Execute method
+        hearingManagementConsole.showMenu(new User());
+
+        // Verify interactions
+        verify(hearingService, never()).deleteHearing(anyLong());
     }
 }

@@ -7,12 +7,13 @@ import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IUserAuthenticationService;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IUserService;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -22,8 +23,6 @@ import java.util.Map;
 import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class AuthenticationConsoleTest {
@@ -34,29 +33,17 @@ public class AuthenticationConsoleTest {
     private IUserAuthenticationService authService;
     private IUserService userService;
     private ConsoleUtils utils;
-    private Scanner testScanner;
     private Logger mockLogger;
-    private AuthenticationConsole authenticationConsole;
+    private AuthenticationConsole authConsole;
 
     @BeforeEach
     public void setUp() {
         System.setOut(new PrintStream(outContent));
-
-        // Setup mocks
-        authService = mock(IUserAuthenticationService.class);
-        userService = mock(IUserService.class);
-        mockLogger = mock(Logger.class);
-
-        // Mock Scanner
-        testScanner = mock(Scanner.class);
-
-        // Setup utils mock with proper return behaviors
-        utils = mock(ConsoleUtils.class);
-        when(utils.getScanner()).thenReturn(testScanner);
+        authService = Mockito.mock(IUserAuthenticationService.class);
+        userService = Mockito.mock(IUserService.class);
+        mockLogger = Mockito.mock(Logger.class);
+        utils = Mockito.mock(ConsoleUtils.class);
         when(utils.getLogger()).thenReturn(mockLogger);
-        doNothing().when(utils).waitForEnter();
-
-        authenticationConsole = new AuthenticationConsole(authService, userService, utils);
     }
 
     @AfterEach
@@ -65,16 +52,12 @@ public class AuthenticationConsoleTest {
     }
 
     /**
-     * Helper method to create a console with simulated input
+     * Helper method to create a console instance with simulated user input
      */
     private AuthenticationConsole createConsoleWithInput(String input) {
-        Scanner scanner = new Scanner(new java.io.ByteArrayInputStream(input.getBytes()));
-        ConsoleUtils consoleUtils = mock(ConsoleUtils.class);
-        when(consoleUtils.getScanner()).thenReturn(scanner);
-        when(consoleUtils.getLogger()).thenReturn(mockLogger);
-        doNothing().when(consoleUtils).waitForEnter();
-
-        return new AuthenticationConsole(authService, userService, consoleUtils);
+        Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+        when(utils.getScanner()).thenReturn(scanner);
+        return new AuthenticationConsole(authService, userService, utils);
     }
 
     /**
@@ -84,235 +67,304 @@ public class AuthenticationConsoleTest {
         User user = new User();
         user.setId(1L);
         user.setUsername("testuser");
-        user.setEmail("testuser@example.com");
+        user.setEmail("test@example.com");
         user.setName("Test");
         user.setSurname("User");
-        user.setRole(UserRole.CLIENT);
+        user.setRole(UserRole.LAWYER);
         user.setEnabled(true);
         return user;
     }
 
     @Test
-    public void testSuccessfulLogin() {
+    public void testLoginSuccess() {
         // Setup input
-        authenticationConsole = createConsoleWithInput("testuser\npassword\n");
+        authConsole = createConsoleWithInput("testuser\npassword123\n");
 
-        // Setup mock responses
+        // Create test user and response data
         User testUser = createTestUser();
-        Map<String, Object> loginData = new HashMap<>();
-        loginData.put("user", testUser);
-        loginData.put("token", "test-token");
-        when(authService.authenticateUser("testuser", "password"))
-                .thenReturn(ApiResponse.success(loginData));
+        Map<String, Object> responseData = new HashMap<>();
+        responseData.put("user", testUser);
+        responseData.put("token", "test-auth-token");
+
+        // Mock service response for successful login
+        when(authService.authenticateUser("testuser", "password123"))
+                .thenReturn(ApiResponse.success(responseData));
 
         // Execute method
-        AuthenticationConsole.LoginResult result = authenticationConsole.login();
+        AuthenticationConsole.LoginResult result = authConsole.login();
 
-        // Verify service call
-        verify(authService).authenticateUser("testuser", "password");
+        // Verify
+        assertNotNull(result, "Should return a non-null result for successful login");
+        assertEquals(testUser, result.getUser(), "Should return the user from the API response");
+        assertEquals("test-auth-token", result.getToken(), "Should return the token from the API response");
 
-        // Assertions
-        assertNotNull(result);
-        assertEquals(testUser, result.getUser());
-        assertEquals("test-token", result.getToken());
-
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Login successful"));
     }
 
     @Test
-    public void testFailedLogin() {
+    public void testLoginFailure() {
         // Setup input
-        authenticationConsole = createConsoleWithInput("testuser\nwrongpassword\n");
+        authConsole = createConsoleWithInput("wronguser\nwrongpass\n");
 
-        // Setup mock responses
-        when(authService.authenticateUser("testuser", "wrongpassword"))
-                .thenReturn(ApiResponse.error("Invalid credentials", 401));
+        // Mock service response for failed login
+        List<String> errorMessages = new ArrayList<>();
+        errorMessages.add("Invalid credentials");
+        when(authService.authenticateUser("wronguser", "wrongpass"))
+                .thenReturn(ApiResponse.error(errorMessages, 401));
 
         // Execute method
-        AuthenticationConsole.LoginResult result = authenticationConsole.login();
+        AuthenticationConsole.LoginResult result = authConsole.login();
 
-        // Verify service call
-        verify(authService).authenticateUser("testuser", "wrongpassword");
+        // Verify
+        assertNull(result, "Should return null for failed login");
+        verify(utils).waitForEnter();
 
-        // Assertions
-        assertNull(result);
-
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Login failed"));
+        assertTrue(output.contains("Login failed: Invalid credentials"));
     }
 
     @Test
-    public void testSuccessfulRegistration() {
-        // Setup input sequence: username, email, name, surname, password, role
-        String input = "newuser\nnewuser@example.com\nNew\nUser\npassword\n5\n";
-        authenticationConsole = createConsoleWithInput(input);
+    public void testLoginException() {
+        // Setup input
+        authConsole = createConsoleWithInput("testuser\npassword123\n");
 
-        // Mocking getUserChoice for role selection
-        try (MockedStatic<ConsoleUtils> mockedStatic = mockStatic(ConsoleUtils.class)) {
-            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(), eq(5))).thenReturn(5);
+        // Mock service response that throws exception
+        when(authService.authenticateUser("testuser", "password123"))
+                .thenThrow(new RuntimeException("Connection error"));
 
-            // Setup mock responses
+        // Execute method
+        AuthenticationConsole.LoginResult result = authConsole.login();
+
+        // Verify
+        assertNull(result, "Should return null when exception occurs");
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("An error occurred during login: Connection error"));
+    }
+
+    @Test
+    public void testRegisterSuccess() {
+        // Setup input for registration with LAWYER role
+        authConsole = createConsoleWithInput("newuser\nuser@example.com\nJohn\nDoe\npassword123\n2\n");
+
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (var mockedStatic = mockStatic(ConsoleUtils.class)) {
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(5)))
+                    .thenReturn(2); // LAWYER role
+
+            // Mock service response for successful registration
             User newUser = new User();
             newUser.setUsername("newuser");
-            newUser.setEmail("newuser@example.com");
-            newUser.setName("New");
-            newUser.setSurname("User");
-            newUser.setRole(UserRole.CLIENT);
+            newUser.setEmail("user@example.com");
+            newUser.setName("John");
+            newUser.setSurname("Doe");
+            newUser.setPassword("password123");
+            newUser.setRole(UserRole.LAWYER);
+            newUser.setEnabled(true);
+
+            // We need to use an ArgumentCaptor to capture the user object passed to registerUser
             when(authService.registerUser(any(User.class)))
                     .thenReturn(ApiResponse.success(newUser));
 
             // Execute method
-            authenticationConsole.register();
+            authConsole.register();
+
+            // Verify service called with correct parameters
+            verify(authService).registerUser(argThat(user ->
+                    "newuser".equals(user.getUsername()) &&
+                            "user@example.com".equals(user.getEmail()) &&
+                            "John".equals(user.getName()) &&
+                            "Doe".equals(user.getSurname()) &&
+                            "password123".equals(user.getPassword()) &&
+                            UserRole.LAWYER.equals(user.getRole()) &&
+                            user.isEnabled()
+            ));
+
+            verify(utils).waitForEnter();
+
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Registration successful"));
         }
-
-        // Verify service call
-        verify(authService).registerUser(any(User.class));
-
-        // Check output contains expected content
-        String output = outContent.toString();
-        assertTrue(output.contains("Registration successful"));
     }
 
     @Test
-    public void testFailedRegistration() {
-        // Setup input sequence: username, email, name, surname, password, role
-        String input = "newuser\nnewuser@example.com\nNew\nUser\npassword\n5\n";
-        authenticationConsole = createConsoleWithInput(input);
+    public void testRegisterFailure() {
+        // Setup input for registration
+        authConsole = createConsoleWithInput("existinguser\nuser@example.com\nJohn\nDoe\npassword123\n3\n");
 
-        // Mocking getUserChoice for role selection
-        try (MockedStatic<ConsoleUtils> mockedStatic = mockStatic(ConsoleUtils.class)) {
-            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(), eq(5))).thenReturn(5);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (var mockedStatic = mockStatic(ConsoleUtils.class)) {
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(5)))
+                    .thenReturn(3); // ASSISTANT role
 
-            // Setup mock responses
+            // Mock service response for failed registration
+            List<String> errorMessages = new ArrayList<>();
+            errorMessages.add("Username already exists");
             when(authService.registerUser(any(User.class)))
-                    .thenReturn(ApiResponse.error("Username already exists", 400));
+                    .thenReturn(ApiResponse.error(errorMessages, 400));
 
             // Execute method
-            authenticationConsole.register();
+            authConsole.register();
+
+            // Verify
+            verify(utils).waitForEnter();
+
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Registration failed: Username already exists"));
         }
-
-        // Verify service call
-        verify(authService).registerUser(any(User.class));
-
-        // Check output contains expected content
-        String output = outContent.toString();
-        assertTrue(output.contains("Registration failed"));
     }
 
     @Test
-    public void testSuccessfulLogout() {
-        // Setup mock response
+    public void testLogoutSuccess() {
+        // Setup
+        authConsole = createConsoleWithInput("");
+
+        // Mock service response
         when(authService.logoutUser("test-token"))
                 .thenReturn(ApiResponse.success(null));
 
         // Execute method
-        authenticationConsole.logout("test-token");
+        authConsole.logout("test-token");
 
-        // Verify service call
+        // Verify
         verify(authService).logoutUser("test-token");
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Successfully logged out"));
     }
 
     @Test
-    public void testFailedLogout() {
-        // Setup mock response
-        when(authService.logoutUser("test-token"))
-                .thenReturn(ApiResponse.error("Logout failed", 500));
+    public void testLogoutFailure() {
+        // Setup
+        authConsole = createConsoleWithInput("");
+
+        // Mock service response
+        List<String> errorMessages = new ArrayList<>();
+        errorMessages.add("Invalid token");
+        when(authService.logoutUser("invalid-token"))
+                .thenReturn(ApiResponse.error(errorMessages, 401));
 
         // Execute method
-        authenticationConsole.logout("test-token");
+        authConsole.logout("invalid-token");
 
-        // Verify service call
-        verify(authService).logoutUser("test-token");
+        // Verify
+        verify(authService).logoutUser("invalid-token");
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("An issue occurred during logout"));
+        assertTrue(output.contains("An issue occurred during logout: Invalid token"));
     }
 
     @Test
     public void testDisplayUserProfile() {
-        // Setup test user
+        // Setup
+        authConsole = createConsoleWithInput("");
         User testUser = createTestUser();
 
         // Execute method
-        authenticationConsole.displayUserProfile(testUser);
+        authConsole.displayUserProfile(testUser);
 
-        // Check output contains expected content
+        // Verify
+        verify(utils).waitForEnter();
+
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("User Profile"));
-        assertTrue(output.contains("Username: " + testUser.getUsername()));
-        assertTrue(output.contains("Email: " + testUser.getEmail()));
+        assertTrue(output.contains("User ID: 1"));
+        assertTrue(output.contains("Username: testuser"));
+        assertTrue(output.contains("Email: test@example.com"));
+        assertTrue(output.contains("First Name: Test"));
+        assertTrue(output.contains("Last Name: User"));
+        assertTrue(output.contains("Role: " + UserRole.LAWYER));
+        assertTrue(output.contains("Account Active: Yes"));
     }
 
     @Test
-    public void testListUsers() {
-        // Setup test users
-        List<User> users = new ArrayList<>();
-        users.add(createTestUser());
+    public void testListUsersSuccess() {
+        // Setup
+        authConsole = createConsoleWithInput("");
+        List<User> userList = new ArrayList<>();
+        userList.add(createTestUser());
+
+        // Add a second user
         User user2 = new User();
         user2.setId(2L);
-        user2.setUsername("anotheruser");
-        user2.setEmail("another@example.com");
-        user2.setName("Another");
+        user2.setUsername("admin");
+        user2.setEmail("admin@example.com");
+        user2.setName("Admin");
         user2.setSurname("User");
-        user2.setRole(UserRole.LAWYER);
-        users.add(user2);
+        user2.setRole(UserRole.ADMIN);
+        user2.setEnabled(true);
+        userList.add(user2);
 
-        // Setup mock response
+        // Mock service response
         when(userService.getAllUsers())
-                .thenReturn(ApiResponse.success(users));
+                .thenReturn(ApiResponse.success(userList));
 
         // Execute method
-        authenticationConsole.listUsers();
+        authConsole.listUsers();
 
-        // Verify service call
+        // Verify
         verify(userService).getAllUsers();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("User List"));
         assertTrue(output.contains("testuser"));
-        assertTrue(output.contains("anotheruser"));
+        assertTrue(output.contains("admin"));
     }
 
     @Test
     public void testListUsersEmpty() {
-        // Setup mock response
+        // Setup
+        authConsole = createConsoleWithInput("");
+        List<User> emptyList = new ArrayList<>();
+
+        // Mock service response
         when(userService.getAllUsers())
-                .thenReturn(ApiResponse.success(new ArrayList<>()));
+                .thenReturn(ApiResponse.success(emptyList));
 
         // Execute method
-        authenticationConsole.listUsers();
+        authConsole.listUsers();
 
-        // Verify service call
+        // Verify
         verify(userService).getAllUsers();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("No users found"));
     }
 
     @Test
     public void testListUsersError() {
-        // Setup mock response
+        // Setup
+        authConsole = createConsoleWithInput("");
+        List<String> errorMessages = new ArrayList<>();
+        errorMessages.add("Database connection error");
+
+        // Mock service response
         when(userService.getAllUsers())
-                .thenReturn(ApiResponse.error("Database error", 500));
+                .thenReturn(ApiResponse.error(errorMessages, 500));
 
         // Execute method
-        authenticationConsole.listUsers();
+        authConsole.listUsers();
 
-        // Verify service call
+        // Verify
         verify(userService).getAllUsers();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Could not retrieve users"));
+        assertTrue(output.contains("Could not retrieve users: Database connection error"));
     }
 }

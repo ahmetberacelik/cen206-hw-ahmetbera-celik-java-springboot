@@ -1,23 +1,34 @@
 package com.ahmet.hasan.yakup.esra.legalcase;
 
-import com.ahmet.hasan.yakup.esra.legalcase.console.ConsoleUtils;
 import com.ahmet.hasan.yakup.esra.legalcase.console.ClientManagementConsole;
-import com.ahmet.hasan.yakup.esra.legalcase.model.Client;
+import com.ahmet.hasan.yakup.esra.legalcase.console.ConsoleUtils;
 import com.ahmet.hasan.yakup.esra.legalcase.model.Case;
+import com.ahmet.hasan.yakup.esra.legalcase.model.Client;
+import com.ahmet.hasan.yakup.esra.legalcase.model.User;
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseStatus;
+import com.ahmet.hasan.yakup.esra.legalcase.model.enums.CaseType;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IClientService;
 import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class ClientManagementConsoleTest {
@@ -35,30 +46,17 @@ public class ClientManagementConsoleTest {
     public void setUp() {
         System.setOut(new PrintStream(outContent));
 
-        // Setup mocks
-        clientService = mock(IClientService.class);
-        mockLogger = mock(Logger.class);
+        // Set up mocks
+        clientService = Mockito.mock(IClientService.class);
+        mockLogger = Mockito.mock(Logger.class);
 
-        // Mock Scanner
-        testScanner = mock(Scanner.class);
-
-        // Setup utils mock with proper return behaviors
-        utils = mock(ConsoleUtils.class);
+        testScanner = new Scanner(System.in);
+        utils = Mockito.mock(ConsoleUtils.class);
         when(utils.getScanner()).thenReturn(testScanner);
         when(utils.getLogger()).thenReturn(mockLogger);
 
-        // For truncateString calls
-        when(utils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
-            String str = invocation.getArgument(0);
-            int maxLength = invocation.getArgument(1);
-            if (str == null) {
-                return "N/A";
-            }
-            if (str.length() <= maxLength) {
-                return str;
-            }
-            return str.substring(0, maxLength - 3) + "...";
-        });
+        // Mock waitForEnter method for all tests by default
+        Mockito.doNothing().when(utils).waitForEnter();
 
         clientManagementConsole = new ClientManagementConsole(clientService, utils);
     }
@@ -69,29 +67,12 @@ public class ClientManagementConsoleTest {
     }
 
     /**
-     * Helper method to create a console with simulated input
+     * Helper method to create a new console instance with simulated user input
      */
     private ClientManagementConsole createConsoleWithInput(String input) {
-        Scanner scanner = new Scanner(new java.io.ByteArrayInputStream(input.getBytes()));
-        ConsoleUtils consoleUtils = mock(ConsoleUtils.class);
-        when(consoleUtils.getScanner()).thenReturn(scanner);
-        when(consoleUtils.getLogger()).thenReturn(mockLogger);
-        doNothing().when(consoleUtils).waitForEnter();
-
-        // For truncateString calls
-        when(consoleUtils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
-            String str = invocation.getArgument(0);
-            int maxLength = invocation.getArgument(1);
-            if (str == null) {
-                return "N/A";
-            }
-            if (str.length() <= maxLength) {
-                return str;
-            }
-            return str.substring(0, maxLength - 3) + "...";
-        });
-
-        return new ClientManagementConsole(clientService, consoleUtils);
+        Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+        when(utils.getScanner()).thenReturn(scanner);
+        return new ClientManagementConsole(clientService, utils);
     }
 
     /**
@@ -100,16 +81,28 @@ public class ClientManagementConsoleTest {
     private List<Client> createTestClients() {
         List<Client> clients = new ArrayList<>();
 
-        Client client1 = new Client(1L, "John", "Doe", "john.doe@example.com");
-        Client client2 = new Client(2L, "Jane", "Smith", "jane.smith@example.com");
+        Client client1 = new Client();
+        client1.setId(1L);
+        client1.setName("John");
+        client1.setSurname("Doe");
+        client1.setEmail("john.doe@example.com");
+        client1.setCreatedAt(LocalDateTime.now().minusDays(30));
+        client1.setUpdatedAt(LocalDateTime.now().minusDays(15));
 
-        // Add some cases to the clients if needed
-        Case case1 = new Case();
-        case1.setId(1L);
-        case1.setCaseNumber("C-001");
-        case1.setTitle("Test Case 1");
+        Client client2 = new Client();
+        client2.setId(2L);
+        client2.setName("Jane");
+        client2.setSurname("Smith");
+        client2.setEmail("jane.smith@example.com");
+        client2.setCreatedAt(LocalDateTime.now().minusDays(20));
+        client2.setUpdatedAt(LocalDateTime.now().minusDays(10));
 
-        client1.getCases().add(case1);
+        // Adding cases to client1
+        List<Case> cases = new ArrayList<>();
+        Case case1 = new Case(1L, "C-001", "Contract Dispute", CaseType.CIVIL);
+        case1.setStatus(CaseStatus.ACTIVE);
+        cases.add(case1);
+        client1.setCases(cases);
 
         clients.add(client1);
         clients.add(client2);
@@ -119,235 +112,542 @@ public class ClientManagementConsoleTest {
 
     @Test
     public void testViewAllClients() {
-        // Setup mock response
+        // Prepare test data
         List<Client> testClients = createTestClients();
+
+        // Mock service response
         when(clientService.getAllClients()).thenReturn(ApiResponse.success(testClients));
 
-        // Execute method
+        // Also mock the truncateString method since it's used in displayClientsList
+        when(utils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
+            String str = invocation.getArgument(0);
+            int maxLength = invocation.getArgument(1);
+            return str.length() > maxLength ? str.substring(0, maxLength) : str;
+        });
+
+        // Execute the method
         clientManagementConsole.viewAllClients();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).getAllClients();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output contains expected text
         String output = outContent.toString();
         assertTrue(output.contains("All Clients"));
+        assertTrue(output.contains("Total clients: 2"));
     }
 
     @Test
     public void testViewAllClientsEmpty() {
-        // Setup mock empty response
+        // Mock empty response
         when(clientService.getAllClients()).thenReturn(ApiResponse.success(new ArrayList<>()));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.viewAllClients();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).getAllClients();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output contains expected text
         String output = outContent.toString();
         assertTrue(output.contains("No clients found"));
     }
 
     @Test
     public void testViewAllClientsError() {
-        // Setup mock error response
+        // Mock error response
         when(clientService.getAllClients()).thenReturn(ApiResponse.error("Database error", 500));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.viewAllClients();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).getAllClients();
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output contains expected text
         String output = outContent.toString();
         assertTrue(output.contains("Failed to retrieve clients"));
     }
 
     @Test
     public void testSearchClientById() {
-        // Setup input
+        // Setup scanner with input
         clientManagementConsole = createConsoleWithInput("1\n");
 
-        // Setup mock response
+        // Mock service response
         Client testClient = createTestClients().get(0);
         when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(testClient));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.searchClientById();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).getClientById(1L);
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Search Client by ID"));
+        assertTrue(output.contains("Client ID: 1"));
+        assertTrue(output.contains("John"));
+        assertTrue(output.contains("Doe"));
     }
 
     @Test
     public void testSearchClientByIdNotFound() {
-        // Setup input
-        clientManagementConsole = createConsoleWithInput("999\n");
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("99\n");
 
-        // Setup mock response
-        when(clientService.getClientById(999L)).thenReturn(ApiResponse.error("Client not found", 404));
+        // Mock service response - not found
+        when(clientService.getClientById(99L)).thenReturn(ApiResponse.error("Client not found", 404));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.searchClientById();
 
-        // Verify service call
-        verify(clientService).getClientById(999L);
+        // Verify interactions
+        verify(clientService).getClientById(99L);
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Client not found"));
     }
 
     @Test
     public void testSearchClientByIdInvalidInput() {
-        // Setup invalid input
+        // Setup scanner with input (non-numeric)
         clientManagementConsole = createConsoleWithInput("abc\n");
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.searchClientById();
 
-        // Verify service call (should not be called with invalid input)
+        // Verify interactions - service should not be called
         verify(clientService, never()).getClientById(anyLong());
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Invalid ID format"));
     }
 
     @Test
     public void testSearchClientByEmail() {
-        // Setup input
+        // Setup scanner with input
         clientManagementConsole = createConsoleWithInput("john.doe@example.com\n");
 
-        // Setup mock response
+        // Mock service response
         Client testClient = createTestClients().get(0);
         when(clientService.getClientByEmail("john.doe@example.com")).thenReturn(ApiResponse.success(testClient));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.searchClientByEmail();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).getClientByEmail("john.doe@example.com");
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Search Client by Email"));
+        assertTrue(output.contains("Client ID: 1"));
+        assertTrue(output.contains("John"));
+    }
+
+    @Test
+    public void testSearchClientByEmailNotFound() {
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("notfound@example.com\n");
+
+        // Mock service response
+        when(clientService.getClientByEmail("notfound@example.com"))
+                .thenReturn(ApiResponse.error("Client not found", 404));
+
+        // Execute the method
+        clientManagementConsole.searchClientByEmail();
+
+        // Verify interactions
+        verify(clientService).getClientByEmail("notfound@example.com");
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Client not found"));
     }
 
     @Test
     public void testSearchClientsByName() {
-        // Setup input
-        clientManagementConsole = createConsoleWithInput("Doe\n");
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("John\n");
 
-        // Setup mock response
-        List<Client> testClients = new ArrayList<>();
-        testClients.add(createTestClients().get(0)); // Only client with "Doe"
-        when(clientService.searchClients("Doe")).thenReturn(ApiResponse.success(testClients));
+        // Mock service response
+        List<Client> foundClients = Arrays.asList(createTestClients().get(0));
+        when(clientService.searchClients("John")).thenReturn(ApiResponse.success(foundClients));
 
-        // Execute method
+        // Also mock the truncateString method since it's used in displayClientsList
+        when(utils.truncateString(anyString(), anyInt())).thenAnswer(invocation -> {
+            String str = invocation.getArgument(0);
+            int maxLength = invocation.getArgument(1);
+            return str.length() > maxLength ? str.substring(0, maxLength) : str;
+        });
+
+        // Execute the method
         clientManagementConsole.searchClientsByName();
 
-        // Verify service call
-        verify(clientService).searchClients("Doe");
+        // Verify interactions
+        verify(clientService).searchClients("John");
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Search Clients by Name"));
+        assertTrue(output.contains("John"));
+        assertTrue(output.contains("Total clients: 1"));
+    }
+
+    @Test
+    public void testSearchClientsByNameNotFound() {
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("Nobody\n");
+
+        // Mock service response - empty list
+        when(clientService.searchClients("Nobody")).thenReturn(ApiResponse.success(new ArrayList<>()));
+
+        // Execute the method
+        clientManagementConsole.searchClientsByName();
+
+        // Verify interactions
+        verify(clientService).searchClients("Nobody");
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("No clients found"));
     }
 
     @Test
     public void testCreateNewClient() {
-        // Setup input sequence: name, surname, email
-        String input = "John\nDoe\njohn.doe@example.com\n";
-        clientManagementConsole = createConsoleWithInput(input);
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("John\nDoe\njohn.doe@example.com\n");
 
-        // Setup mock responses
-        Client createdClient = new Client(3L, "John", "Doe", "john.doe@example.com");
-        when(clientService.createClient(any(Client.class))).thenReturn(ApiResponse.success(createdClient));
+        // Prepare client that will be returned
+        Client newClient = new Client();
+        newClient.setId(1L);
+        newClient.setName("John");
+        newClient.setSurname("Doe");
+        newClient.setEmail("john.doe@example.com");
 
-        // Execute method
+        // Mock service response
+        when(clientService.createClient(any(Client.class))).thenReturn(ApiResponse.success(newClient));
+
+        // Execute the method
         clientManagementConsole.createNewClient();
 
-        // Verify service call
+        // Verify interactions
         verify(clientService).createClient(any(Client.class));
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Client created successfully"));
     }
 
     @Test
+    public void testCreateNewClientError() {
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("John\nDoe\njohn.doe@example.com\n");
+
+        // Mock service response - error
+        when(clientService.createClient(any(Client.class)))
+                .thenReturn(ApiResponse.error("Email already exists", 400));
+
+        // Execute the method
+        clientManagementConsole.createNewClient();
+
+        // Verify interactions
+        verify(clientService).createClient(any(Client.class));
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Failed to create client"));
+    }
+
+    @Test
     public void testUpdateClient() {
-        // Setup input sequence: ID, new name, new surname, new email
-        String input = "1\n\nNewDoe\n\n";
-        clientManagementConsole = createConsoleWithInput(input);
+        // Setup scanner with input for ID and new values
+        clientManagementConsole = createConsoleWithInput("1\nJohnny\n\nnewmail@example.com\n");
 
-        // Setup mock responses
+        // Prepare client that will be returned from get and update
         Client existingClient = createTestClients().get(0);
-        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(existingClient));
+        Client updatedClient = new Client();
+        updatedClient.setId(1L);
+        updatedClient.setName("Johnny");
+        updatedClient.setSurname("Doe");
+        updatedClient.setEmail("newmail@example.com");
 
-        Client updatedClient = new Client(1L, existingClient.getName(), "NewDoe", existingClient.getEmail());
+        // Mock service responses
+        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(existingClient));
         when(clientService.updateClient(any(Client.class))).thenReturn(ApiResponse.success(updatedClient));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.updateClient();
 
-        // Verify service calls
+        // Verify interactions
         verify(clientService).getClientById(1L);
         verify(clientService).updateClient(any(Client.class));
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Update Client Details"));
+        assertTrue(output.contains("Client updated successfully"));
+    }
+
+    @Test
+    public void testUpdateClientNotFound() {
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("99\n");
+
+        // Mock service response - not found
+        when(clientService.getClientById(99L)).thenReturn(ApiResponse.error("Client not found", 404));
+
+        // Execute the method
+        clientManagementConsole.updateClient();
+
+        // Verify interactions - only verify the service call, not waitForEnter
+        verify(clientService).getClientById(99L);
+        verify(clientService, never()).updateClient(any(Client.class));
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Client not found"));
+    }
+
+    @Test
+    public void testUpdateClientInvalidInput() {
+        // Setup scanner with input (non-numeric)
+        clientManagementConsole = createConsoleWithInput("abc\n");
+
+        // Execute the method
+        clientManagementConsole.updateClient();
+
+        // Verify interactions - service should not be called
+        verify(clientService, never()).getClientById(anyLong());
+        verify(clientService, never()).updateClient(any(Client.class));
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Invalid ID format"));
     }
 
     @Test
     public void testDeleteClient() {
-        // Setup input with confirmation
+        // Setup scanner with input for ID and confirmation
         clientManagementConsole = createConsoleWithInput("1\nY\n");
 
-        // Setup mock responses
-        Client testClient = createTestClients().get(0);
-        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(testClient));
+        // Mock service responses
+        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(createTestClients().get(0)));
         when(clientService.deleteClient(1L)).thenReturn(ApiResponse.success(null));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.deleteClient();
 
-        // Verify service calls
+        // Verify interactions
         verify(clientService).getClientById(1L);
         verify(clientService).deleteClient(1L);
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
-        assertTrue(output.contains("Delete Client"));
+        assertTrue(output.contains("Client deleted successfully"));
+    }
+
+    @Test
+    public void testDeleteClientNotFound() {
+        // Setup scanner with input
+        clientManagementConsole = createConsoleWithInput("99\n");
+
+        // Mock service response - not found
+        when(clientService.getClientById(99L)).thenReturn(ApiResponse.error("Client not found", 404));
+
+        // Execute the method
+        clientManagementConsole.deleteClient();
+
+        // Verify interactions - only verify the service call, not waitForEnter
+        verify(clientService).getClientById(99L);
+        verify(clientService, never()).deleteClient(anyLong());
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Client not found"));
     }
 
     @Test
     public void testDeleteClientCancelled() {
-        // Setup input with cancellation
+        // Setup scanner with input for ID and cancellation
         clientManagementConsole = createConsoleWithInput("1\nN\n");
 
-        // Setup mock responses
-        Client testClient = createTestClients().get(0);
-        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(testClient));
+        // Mock service responses
+        when(clientService.getClientById(1L)).thenReturn(ApiResponse.success(createTestClients().get(0)));
 
-        // Execute method
+        // Execute the method
         clientManagementConsole.deleteClient();
 
-        // Verify get call but no delete
+        // Verify interactions
         verify(clientService).getClientById(1L);
         verify(clientService, never()).deleteClient(anyLong());
+        verify(utils).waitForEnter();
 
-        // Check output contains expected content
+        // Check output
         String output = outContent.toString();
         assertTrue(output.contains("Client deletion cancelled"));
+    }
+
+    @Test
+    public void testDeleteClientInvalidInput() {
+        // Setup scanner with input (non-numeric)
+        clientManagementConsole = createConsoleWithInput("abc\n");
+
+        // Execute the method
+        clientManagementConsole.deleteClient();
+
+        // Verify interactions - service should not be called
+        verify(clientService, never()).getClientById(anyLong());
+        verify(clientService, never()).deleteClient(anyLong());
+        verify(utils).waitForEnter();
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Invalid ID format"));
+    }
+
+    @Test
+    public void testMenuComprehensive() {
+        // Prepare a comprehensive input sequence that will exercise all menu options
+        String input =
+                "1\n" +  // View All Clients
+                        "2\n1\n" +  // Search Client by ID
+                        "3\njohn.doe@example.com\n" +  // Search Client by Email
+                        "4\nDoe\n" +  // Search Clients by Name
+
+                        // Create New Client
+                        "5\n" +
+                        "Alice\n" +  // First Name
+                        "Johnson\n" +  // Last Name
+                        "alice.j@example.com\n" +  // Email
+
+                        // Update Client
+                        "6\n1\n" +  // Client ID
+                        "John\n" +  // First Name (unchanged)
+                        "Smith\n" +  // Last Name (changed)
+                        "\n" +  // Email (unchanged)
+
+                        // Delete Client (with confirmation)
+                        "7\n2\nY\n" +
+
+                        "8\n";  // Return to Main Menu
+
+        clientManagementConsole = createConsoleWithInput(input);
+
+        // Setup mock responses for each interaction
+        List<Client> testClients = createTestClients();
+        Client testClient = testClients.get(0);
+        Client testClient2 = testClients.get(1);
+
+        // Mock responses for getAllClients
+        when(clientService.getAllClients())
+                .thenReturn(ApiResponse.success(testClients));
+
+        // Mock responses for getClientById - use atLeastOnce() since it will be called multiple times
+        when(clientService.getClientById(1L))
+                .thenReturn(ApiResponse.success(testClient));
+
+        // Mock responses for getClientByEmail
+        when(clientService.getClientByEmail("john.doe@example.com"))
+                .thenReturn(ApiResponse.success(testClient));
+
+        // Mock responses for searchClients
+        when(clientService.searchClients("Doe"))
+                .thenReturn(ApiResponse.success(Arrays.asList(testClient)));
+
+        // Mock client creation
+        Client newClient = new Client();
+        newClient.setId(3L);
+        newClient.setName("Alice");
+        newClient.setSurname("Johnson");
+        newClient.setEmail("alice.j@example.com");
+        when(clientService.createClient(any(Client.class)))
+                .thenReturn(ApiResponse.success(newClient));
+
+        // Mock client update
+        Client updatedClient = new Client();
+        updatedClient.setId(1L);
+        updatedClient.setName("John");
+        updatedClient.setSurname("Smith");
+        updatedClient.setEmail("john.doe@example.com");
+        when(clientService.updateClient(any(Client.class)))
+                .thenReturn(ApiResponse.success(updatedClient));
+
+        // Mock client deletion
+        when(clientService.getClientById(2L))
+                .thenReturn(ApiResponse.success(testClient2));
+        when(clientService.deleteClient(2L))
+                .thenReturn(ApiResponse.success(null));
+
+        // Execute the method with a mock user
+        clientManagementConsole.showMenu(new User());
+
+        // Verify interactions for all menu options
+        verify(clientService).getAllClients();
+        verify(clientService, atLeastOnce()).getClientById(1L); // Using atLeastOnce() since it's called multiple times
+        verify(clientService).getClientByEmail("john.doe@example.com");
+        verify(clientService).searchClients("Doe");
+        verify(clientService).createClient(any(Client.class));
+        verify(clientService).updateClient(any(Client.class));
+        verify(clientService).getClientById(2L);
+        verify(clientService).deleteClient(2L);
+    }
+
+    @Test
+    public void testMenuWithInvalidSelections() {
+        // Prepare input with invalid menu selection followed by exit
+        String input = "10\n8\n";
+        clientManagementConsole = createConsoleWithInput(input);
+
+        // Execute method
+        clientManagementConsole.showMenu(new User());
+
+        // Check output
+        String output = outContent.toString();
+        assertTrue(output.contains("Invalid selection"));
+    }
+
+    @Test
+    public void testMenuWithErrorResponses() {
+        // Prepare input sequence for menu options that will receive error responses
+        String input =
+                "1\n" +  // View All Clients (will error)
+                        "2\n1\n" +  // Search Client by ID (will error)
+                        "8\n";  // Return to Main Menu
+
+        clientManagementConsole = createConsoleWithInput(input);
+
+        // Mock error responses
+        when(clientService.getAllClients())
+                .thenReturn(ApiResponse.error("Database connection error", 500));
+        when(clientService.getClientById(1L))
+                .thenReturn(ApiResponse.error("Client not found", 404));
+
+        // Execute the method
+        clientManagementConsole.showMenu(new User());
+
+        // Verify interactions
+        verify(clientService).getAllClients();
+        verify(clientService).getClientById(1L);
+
+        // Check output for error messages
+        String output = outContent.toString();
+        assertTrue(output.contains("Failed to retrieve clients"));
+        assertTrue(output.contains("Client not found"));
     }
 }

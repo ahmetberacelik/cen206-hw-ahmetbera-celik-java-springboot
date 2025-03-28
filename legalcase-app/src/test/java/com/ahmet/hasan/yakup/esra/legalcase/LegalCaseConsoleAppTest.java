@@ -1,24 +1,23 @@
 package com.ahmet.hasan.yakup.esra.legalcase;
 
-// Update these imports to match your project structure
-
 import com.ahmet.hasan.yakup.esra.legalcase.console.*;
-import com.ahmet.hasan.yakup.esra.legalcase.console.AuthenticationConsole.LoginResult;
 import com.ahmet.hasan.yakup.esra.legalcase.model.User;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
 import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.*;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,53 +28,40 @@ public class LegalCaseConsoleAppTest {
     private final ByteArrayOutputStream outContent = new ByteArrayOutputStream();
     private final PrintStream originalOut = System.out;
 
-    @Mock
     private IUserAuthenticationService authService;
-
-    @Mock
     private IUserService userService;
-
-    @Mock
     private ICaseService caseService;
-
-    @Mock
     private IClientService clientService;
-
-    @Mock
     private IHearingService hearingService;
-
-    @Mock
     private IDocumentService documentService;
 
-    @Mock
     private AuthenticationConsole authConsole;
-
-    @Mock
     private CaseManagementConsole caseConsole;
-
-    @Mock
     private ClientManagementConsole clientConsole;
-
-    @Mock
     private HearingManagementConsole hearingConsole;
-
-    @Mock
     private DocumentManagementConsole documentConsole;
 
-    @InjectMocks
     private LegalCaseConsoleApp consoleApp;
+    private Scanner scanner;
 
     @BeforeEach
-    public void setUp() throws Exception {
-        MockitoAnnotations.openMocks(this);
+    public void setUp() {
         System.setOut(new PrintStream(outContent));
 
-        // Set the mocked consoles using reflection
-        setPrivateField(consoleApp, "authConsole", authConsole);
-        setPrivateField(consoleApp, "caseConsole", caseConsole);
-        setPrivateField(consoleApp, "clientConsole", clientConsole);
-        setPrivateField(consoleApp, "hearingConsole", hearingConsole);
-        setPrivateField(consoleApp, "documentConsole", documentConsole);
+        // Mock all services
+        authService = Mockito.mock(IUserAuthenticationService.class);
+        userService = Mockito.mock(IUserService.class);
+        caseService = Mockito.mock(ICaseService.class);
+        clientService = Mockito.mock(IClientService.class);
+        hearingService = Mockito.mock(IHearingService.class);
+        documentService = Mockito.mock(IDocumentService.class);
+
+        // Mock all consoles
+        authConsole = Mockito.mock(AuthenticationConsole.class);
+        caseConsole = Mockito.mock(CaseManagementConsole.class);
+        clientConsole = Mockito.mock(ClientManagementConsole.class);
+        hearingConsole = Mockito.mock(HearingManagementConsole.class);
+        documentConsole = Mockito.mock(DocumentManagementConsole.class);
     }
 
     @AfterEach
@@ -84,57 +70,58 @@ public class LegalCaseConsoleAppTest {
     }
 
     /**
-     * Helper method to set a private field using reflection
+     * Helper method to create a console app with injected mocks
      */
-    private void setPrivateField(Object instance, String fieldName, Object value) throws Exception {
-        Field field = null;
-        // Try to get field from class first
-        try {
-            field = instance.getClass().getDeclaredField(fieldName);
-        } catch (NoSuchFieldException e) {
-            // If not found, try superclass
-            field = instance.getClass().getSuperclass().getDeclaredField(fieldName);
-        }
+    private LegalCaseConsoleApp createAppWithInput(String input) throws Exception {
+        // Create a scanner with the provided input
+        scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+
+        // Create a real ConsoleApp but with mocked components
+        LegalCaseConsoleApp app = new LegalCaseConsoleApp(
+                authService, userService, caseService,
+                clientService, hearingService, documentService);
+
+        // Replace the console components with our mocks using reflection
+        replaceField(app, "authConsole", authConsole);
+        replaceField(app, "caseConsole", caseConsole);
+        replaceField(app, "clientConsole", clientConsole);
+        replaceField(app, "hearingConsole", hearingConsole);
+        replaceField(app, "documentConsole", documentConsole);
+
+        // Replace the scanner with our test scanner
+        replaceField(app, "scanner", scanner);
+
+        return app;
+    }
+
+    private void replaceField(Object target, String fieldName, Object value) throws Exception {
+        Field field = LegalCaseConsoleApp.class.getDeclaredField(fieldName);
         field.setAccessible(true);
-        field.set(instance, value);
+        field.set(target, value);
     }
 
     /**
-     * Helper method to get a private field value using reflection
+     * Helper method to set the current user in the app
      */
-    private Object getPrivateField(Object instance, String fieldName) throws Exception {
-        Field field = null;
-        // Try to get field from class first
-        try {
-            field = instance.getClass().getDeclaredField(fieldName);
-        } catch (NoSuchFieldException e) {
-            // If not found, try superclass
-            field = instance.getClass().getSuperclass().getDeclaredField(fieldName);
-        }
-        field.setAccessible(true);
-        return field.get(instance);
+    private void setCurrentUser(LegalCaseConsoleApp app, User user) throws Exception {
+        Field userField = LegalCaseConsoleApp.class.getDeclaredField("currentUser");
+        userField.setAccessible(true);
+        userField.set(app, user);
     }
 
     /**
-     * Helper method to simulate user input
+     * Helper method to set the auth token in the app
      */
-    private void simulateUserInput(String input) {
-        ByteArrayInputStream inContent = new ByteArrayInputStream(input.getBytes());
-        System.setIn(inContent);
-
-        try {
-            // Replace scanner with our simulated input
-            Scanner mockScanner = new Scanner(inContent);
-            setPrivateField(consoleApp, "scanner", mockScanner);
-        } catch (Exception e) {
-            System.err.println("Error setting up mock scanner: " + e.getMessage());
-        }
+    private void setAuthToken(LegalCaseConsoleApp app, String token) throws Exception {
+        Field tokenField = LegalCaseConsoleApp.class.getDeclaredField("authToken");
+        tokenField.setAccessible(true);
+        tokenField.set(app, token);
     }
 
     /**
-     * Helper method to create a mock user
+     * Create a test user
      */
-    private User createMockUser() {
+    private User createTestUser() {
         User user = new User();
         user.setId(1L);
         user.setUsername("testuser");
@@ -142,223 +129,300 @@ public class LegalCaseConsoleAppTest {
         user.setName("Test");
         user.setSurname("User");
         user.setRole(UserRole.LAWYER);
+        user.setEnabled(true);
         return user;
     }
 
     @Test
-    public void testLoginMenu() throws Exception {
-        // Capture console output to verify menu content
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(outContent));
+    public void testRunLoginAndExit() throws Exception {
+        // Prepare input: Login then Exit
+        String input = "1\n7\n";
+        consoleApp = createAppWithInput(input);
 
-        // Call printLoginMenu via reflection
-        Method printLoginMenuMethod = LegalCaseConsoleApp.class.getDeclaredMethod("printLoginMenu");
-        printLoginMenuMethod.setAccessible(true);
-        printLoginMenuMethod.invoke(consoleApp);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // For login menu (options 1-3)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(3)))
+                    .thenReturn(1); // Select login
 
-        // Check that the login menu was displayed
-        String output = outContent.toString();
-        assertTrue(output.contains("Login Menu"));
-        assertTrue(output.contains("1. Login"));
-        assertTrue(output.contains("2. Register"));
-        assertTrue(output.contains("3. Exit"));
+            // For main menu (options 1-7)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(7); // Select exit
+
+            // Setup login result
+            User testUser = createTestUser();
+            AuthenticationConsole.LoginResult loginResult =
+                    new AuthenticationConsole.LoginResult(testUser, "test-token");
+            when(authConsole.login()).thenReturn(loginResult);
+
+            // Run the app
+            consoleApp.run();
+
+            // Verify
+            verify(authConsole, times(1)).login();
+
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Starting LegalCase Console Application"));
+            assertTrue(output.contains("Closing LegalCase Console Application"));
+        }
     }
 
     @Test
-    public void testLogin() throws Exception {
-        // Create mock user and login result
-        User mockUser = createMockUser();
-        LoginResult loginResult = new LoginResult(mockUser, "test-token");
+    public void testRunRegisterAndExit() throws Exception {
+        // Prepare input: Register then Exit
+        String input = "2\n3\n";
+        consoleApp = createAppWithInput(input);
 
-        // Setup auth console mock
-        when(authConsole.login()).thenReturn(loginResult);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // First return 2 (Register), then 3 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(3)))
+                    .thenReturn(2, 3);
 
-        // Set private fields to simulate being logged out initially
-        setPrivateField(consoleApp, "currentUser", null);
-        setPrivateField(consoleApp, "authToken", null);
+            // Run the app
+            consoleApp.run();
 
-        // Call login method using reflection
-        Method loginMethod = LegalCaseConsoleApp.class.getDeclaredMethod("login");
-        loginMethod.setAccessible(true);
-        loginMethod.invoke(consoleApp);
+            // Verify
+            verify(authConsole, times(1)).register();
 
-        // Verify auth console was called
-        verify(authConsole, times(1)).login();
-
-        // Get the resulting state
-        User currentUser = (User) getPrivateField(consoleApp, "currentUser");
-        String authToken = (String) getPrivateField(consoleApp, "authToken");
-
-        // Verify the correct state
-        assertEquals(mockUser, currentUser);
-        assertEquals("test-token", authToken);
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Starting LegalCase Console Application"));
+            assertTrue(output.contains("Closing LegalCase Console Application"));
+        }
     }
 
     @Test
-    public void testFailedLogin() throws Exception {
-        // Setup auth console mock to return null (failed login)
-        when(authConsole.login()).thenReturn(null);
+    public void testMainMenuOptions() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
+        setAuthToken(consoleApp, "test-token");
 
-        // Set private fields to simulate being logged out initially
-        setPrivateField(consoleApp, "currentUser", null);
-        setPrivateField(consoleApp, "authToken", null);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 1 (View Profile) then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(1, 7);
 
-        // Call login method using reflection
-        Method loginMethod = LegalCaseConsoleApp.class.getDeclaredMethod("login");
-        loginMethod.setAccessible(true);
-        loginMethod.invoke(consoleApp);
+            // Run the app
+            consoleApp.run();
 
-        // Verify auth console was called
-        verify(authConsole, times(1)).login();
+            // Verify profile view was called
+            verify(authConsole, times(1)).displayUserProfile(testUser);
 
-        // Get the resulting state
-        User currentUser = (User) getPrivateField(consoleApp, "currentUser");
-        String authToken = (String) getPrivateField(consoleApp, "authToken");
-
-        // Verify the correct state (should remain null)
-        assertNull(currentUser);
-        assertNull(authToken);
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Welcome, Test User"));
+        }
     }
 
     @Test
-    public void testRegister() throws Exception {
-        // Call register method using reflection
-        Method registerMethod = LegalCaseConsoleApp.class.getDeclaredMethod("register");
-        registerMethod.setAccessible(true);
-        registerMethod.invoke(consoleApp);
+    public void testCaseManagement() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
 
-        // Verify registration method was called
-        verify(authConsole, times(1)).register();
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 2 (Case Management) then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(2, 7);
+
+            // Run the app
+            consoleApp.run();
+
+            // Verify case console was called
+            verify(caseConsole, times(1)).showMenu(testUser);
+        }
+    }
+
+    @Test
+    public void testClientManagement() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
+
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 3 (Client Management) then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(3, 7);
+
+            // Run the app
+            consoleApp.run();
+
+            // Verify client console was called
+            verify(clientConsole, times(1)).showMenu(testUser);
+        }
+    }
+
+    @Test
+    public void testHearingManagement() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
+
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 4 (Hearing Management) then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(4, 7);
+
+            // Run the app
+            consoleApp.run();
+
+            // Verify hearing console was called
+            verify(hearingConsole, times(1)).showMenu(testUser);
+        }
+    }
+
+    @Test
+    public void testDocumentManagement() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
+
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 5 (Document Management) then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(5, 7);
+
+            // Run the app
+            consoleApp.run();
+
+            // Verify document console was called
+            verify(documentConsole, times(1)).showMenu(testUser);
+        }
     }
 
     @Test
     public void testLogout() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        String testToken = "test-token";
-        setPrivateField(consoleApp, "currentUser", mockUser);
-        setPrivateField(consoleApp, "authToken", testToken);
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
+        setAuthToken(consoleApp, "test-token");
 
-        // Call logout method using reflection
-        Method logoutMethod = LegalCaseConsoleApp.class.getDeclaredMethod("logout");
-        logoutMethod.setAccessible(true);
-        logoutMethod.invoke(consoleApp);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate selections: 6 (Logout) then 3 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(6);
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(3)))
+                    .thenReturn(3);
 
-        // Verify console logout was called with token
-        verify(authConsole, times(1)).logout(testToken);
+            // Run the app
+            consoleApp.run();
 
-        // Verify fields are reset
-        User currentUser = (User) getPrivateField(consoleApp, "currentUser");
-        String authToken = (String) getPrivateField(consoleApp, "authToken");
+            // Verify logout was called
+            verify(authConsole, times(1)).logout("test-token");
 
-        assertNull(currentUser);
-        assertNull(authToken);
+            // Check if user was reset
+            Field userField = LegalCaseConsoleApp.class.getDeclaredField("currentUser");
+            userField.setAccessible(true);
+            assertNull(userField.get(consoleApp), "Current user should be null after logout");
+
+            // Check if token was reset
+            Field tokenField = LegalCaseConsoleApp.class.getDeclaredField("authToken");
+            tokenField.setAccessible(true);
+            assertNull(tokenField.get(consoleApp), "Auth token should be null after logout");
+        }
     }
 
     @Test
-    public void testViewProfile() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
+    public void testInvalidSelectionInLoginMenu() throws Exception {
+        // Prepare input with invalid selection
+        consoleApp = createAppWithInput("");
 
-        // Call viewProfile method using reflection
-        Method viewProfileMethod = LegalCaseConsoleApp.class.getDeclaredMethod("viewProfile");
-        viewProfileMethod.setAccessible(true);
-        viewProfileMethod.invoke(consoleApp);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // First return -1 (invalid), then 3 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(3)))
+                    .thenReturn(-1, 3);
 
-        // Verify profile display was called
-        verify(authConsole, times(1)).displayUserProfile(mockUser);
+            // Run the app
+            consoleApp.run();
+
+            // Check output for invalid selection message
+            String output = outContent.toString();
+            assertTrue(output.contains("Invalid selection!"));
+        }
     }
 
     @Test
-    public void testMainMenu() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
+    public void testInvalidSelectionInMainMenu() throws Exception {
+        // Create app with logged-in user
+        consoleApp = createAppWithInput("");
+        User testUser = createTestUser();
+        setCurrentUser(consoleApp, testUser);
 
-        // Capture console output to verify menu content
-        ByteArrayOutputStream outContent = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(outContent));
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // First return -1 (invalid), then 7 (Exit)
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(-1, 7);
 
-        // Call printMainMenu via reflection
-        Method printMainMenuMethod = LegalCaseConsoleApp.class.getDeclaredMethod("printMainMenu");
-        printMainMenuMethod.setAccessible(true);
-        printMainMenuMethod.invoke(consoleApp);
+            // Run the app
+            consoleApp.run();
 
-        // Check that the main menu was displayed
-        String output = outContent.toString();
-        assertTrue(output.contains("Main Menu"));
-        assertTrue(output.contains("Welcome, Test User"));
-        assertTrue(output.contains("1. View My Profile"));
-        assertTrue(output.contains("2. Case Management"));
-        assertTrue(output.contains("6. Logout"));
-        assertTrue(output.contains("7. Exit Application"));
+            // Check output for invalid selection message
+            String output = outContent.toString();
+            assertTrue(output.contains("Invalid selection!"));
+        }
     }
 
     @Test
-    public void testCaseManagementNavigation() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
+    public void testCompleteWorkflow() throws Exception {
+        // Create app with input
+        consoleApp = createAppWithInput("");
 
-        // Create a test runner that accesses private methods via reflection
-        Runnable testRunner = () -> {
-            try {
-                // Call printMainMenu via reflection
-                Method printMainMenuMethod = LegalCaseConsoleApp.class.getDeclaredMethod("printMainMenu");
-                printMainMenuMethod.setAccessible(true);
-                printMainMenuMethod.invoke(consoleApp);
+        // Setup static ConsoleUtils.getUserChoice mock
+        try (MockedStatic<ConsoleUtils> mockedStatic = Mockito.mockStatic(ConsoleUtils.class)) {
+            // Simulate a complete workflow:
+            // 1. Login (success)
+            // 2. View Profile
+            // 3. Case Management
+            // 4. Client Management
+            // 5. Hearing Management
+            // 6. Document Management
+            // 7. Logout
+            // 8. Exit
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(3)))
+                    .thenReturn(1, 3); // First login, then exit (after logout)
 
-                // Call case management directly
-                caseConsole.showMenu(mockUser);
-            } catch (Exception e) {
-                System.err.println("Test execution failed: " + e.getMessage());
-            }
-        };
+            mockedStatic.when(() -> ConsoleUtils.getUserChoice(any(Scanner.class), eq(7)))
+                    .thenReturn(1, 2, 3, 4, 5, 6, 7); // All main menu options in sequence
 
-        // Run the test code
-        testRunner.run();
+            // Setup login result
+            User testUser = createTestUser();
+            AuthenticationConsole.LoginResult loginResult =
+                    new AuthenticationConsole.LoginResult(testUser, "test-token");
+            when(authConsole.login()).thenReturn(loginResult);
 
-        // Verify case management menu was shown
-        verify(caseConsole, times(1)).showMenu(mockUser);
-    }
+            // Run the app
+            consoleApp.run();
 
-    @Test
-    public void testClientManagementNavigation() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
+            // Verify all console methods were called in the correct order
+            verify(authConsole, times(1)).login();
+            verify(authConsole, times(1)).displayUserProfile(testUser);
+            verify(caseConsole, times(1)).showMenu(testUser);
+            verify(clientConsole, times(1)).showMenu(testUser);
+            verify(hearingConsole, times(1)).showMenu(testUser);
+            verify(documentConsole, times(1)).showMenu(testUser);
+            verify(authConsole, times(1)).logout("test-token");
 
-        // Directly call the client console
-        clientConsole.showMenu(mockUser);
-
-        // Verify client management menu was shown
-        verify(clientConsole, times(1)).showMenu(mockUser);
-    }
-
-    @Test
-    public void testHearingManagementNavigation() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
-
-        // Directly call the hearing console
-        hearingConsole.showMenu(mockUser);
-
-        // Verify hearing management menu was shown
-        verify(hearingConsole, times(1)).showMenu(mockUser);
-    }
-
-    @Test
-    public void testDocumentManagementNavigation() throws Exception {
-        // Setup initial state - logged in
-        User mockUser = createMockUser();
-        setPrivateField(consoleApp, "currentUser", mockUser);
-
-        // Directly call the document console
-        documentConsole.showMenu(mockUser);
-
-        // Verify document management menu was shown
-        verify(documentConsole, times(1)).showMenu(mockUser);
+            // Check output
+            String output = outContent.toString();
+            assertTrue(output.contains("Starting LegalCase Console Application"));
+            assertTrue(output.contains("Closing LegalCase Console Application"));
+        }
     }
 }

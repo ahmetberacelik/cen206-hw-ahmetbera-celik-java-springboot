@@ -526,19 +526,4 @@ public class DocumentManagementConsoleTest {
         assertTrue(output.contains("Document updated successfully"));
     }
 
-//    @Test
-//    public void MenuTestTrue() {
-//
-//        createTestDocuments();
-//
-//        // Setup input with cancellation
-//        documentManagementConsole = createConsoleWithInput("");
-//
-//        documentManagementConsole.showMenu(new User());
-//
-//        // Check output contains expected content
-//        String output = outContent.toString();
-//        assertFalse(output.contains("Document deletion cancelled"));
-//    }
-
 }

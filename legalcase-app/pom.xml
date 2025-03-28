@@ -276,6 +276,7 @@
                         <include>**/AuthenticationConsoleTest.java</include>
                         <include>**/CaseManagementConsoleTest.java</include>
                         <include>**/ClientManagementConsoleTest.java</include>
+                        <include>**/ConsoleUtilsTest.java</include>
                         <include>**/DocumentManagementConsoleTest.java</include>
                         <include>**/HearingManagementConsoleTest.java</include>
                         <include>**/LegalCaseConsoleAppTest.java</include>

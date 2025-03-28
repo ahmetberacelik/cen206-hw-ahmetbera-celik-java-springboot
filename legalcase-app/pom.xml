@@ -280,6 +280,13 @@
                         <include>**/DocumentManagementConsoleTest.java</include>
                         <include>**/HearingManagementConsoleTest.java</include>
                         <include>**/LegalCaseConsoleAppTest.java</include>
+                        <include>**/AuthTestControllerTest.java</include>
+                        <include>**/CaseControllerTest.java</include>
+                        <include>**/ClientControllerTest.java</include>
+                        <include>**/DocumentControllerTest.java</include>
+                        <include>**/HearingControllerTest.java</include>
+                        <include>**/UserAuthenticationControllerTest.java</include>
+                        <include>**/UserControllerTest.java</include>
                     </includes>
                 </configuration>
             </plugin>

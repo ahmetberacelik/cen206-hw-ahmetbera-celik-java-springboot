@@ -55,7 +55,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
     /**
      * Get admin Keycloak instance
      */
-    private Keycloak getKeycloakAdminInstance() {
+    public Keycloak getKeycloakAdminInstance() {
         // Let's add logging
         logger.debug("Trying to connect to Keycloak admin with URL: {}", authServerUrl);
 

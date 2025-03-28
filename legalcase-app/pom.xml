@@ -287,6 +287,13 @@
                         <include>**/HearingControllerTest.java</include>
                         <include>**/UserAuthenticationControllerTest.java</include>
                         <include>**/UserControllerTest.java</include>
+                        <include>**/CaseServiceTest.java</include>
+                        <include>**/ClientServiceTest.java</include>
+                        <include>**/DocumentServiceTest.java</include>
+                        <include>**/HearingServiceTest.java</include>
+                        <include>**/KeycloakAuthenticationServiceTest.java</include>
+                        <include>**/UserAuthenticationServiceTest.java</include>
+                        <include>**/UserServiceTest.java</include>
                     </includes>
                 </configuration>
             </plugin>

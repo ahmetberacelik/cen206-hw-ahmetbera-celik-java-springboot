@@ -91,7 +91,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
     /**
      * Get Keycloak instance for token operations
      */
-    private Keycloak getKeycloakInstance() {
+    public Keycloak getKeycloakInstance() {
         try {
             logger.debug("Building Keycloak instance with server URL: {}, realm: {}", authServerUrl, realm);
             return KeycloakBuilder.builder()
@@ -179,7 +179,7 @@ public class KeycloakAuthenticationService implements IUserAuthenticationService
     /**
      * Creates the user by making a direct HTTP call
      */
-    private ApiResponse<User> createUserWithDirectHttpCall(User user, RealmResource realmResource) {
+    public ApiResponse<User> createUserWithDirectHttpCall(User user, RealmResource realmResource) {
         try {
             // Create the Keycloak URL
             String keycloakUrl = authServerUrl + "/admin/realms/" + realm + "/users";

@@ -3,41 +3,79 @@ package com.ahmet.hasan.yakup.esra.legalcase;
 import com.ahmet.hasan.yakup.esra.legalcase.model.User;
 import com.ahmet.hasan.yakup.esra.legalcase.model.enums.UserRole;
 import com.ahmet.hasan.yakup.esra.legalcase.repository.UserRepository;
-import com.ahmet.hasan.yakup.esra.legalcase.service.virtual.IUserAuthenticationService;
-import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import com.ahmet.hasan.yakup.esra.legalcase.service.concrete.KeycloakAuthenticationService;
+import com.ahmet.hasan.yakup.esra.legalcase.utils.ApiResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.admin.client.resource.RolesResource;
+import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.admin.client.resource.UsersResource;
+import org.keycloak.admin.client.token.TokenManager;
+import org.keycloak.representations.AccessTokenResponse;
+import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.representations.idm.UserRepresentation;
+import org.mockito.*;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Test class for KeycloakAuthenticationService
- * This class uses direct mocking of the service to avoid Keycloak connectivity issues
+ * Test class for Keycloak authentication service
  */
+@ExtendWith(MockitoExtension.class)
 class KeycloakAuthenticationServiceTest {
 
     @Mock
     private UserRepository userRepository;
 
-    private IUserAuthenticationService authService;
+    private KeycloakAuthenticationService keycloakAuthService;
+
+    @Mock
+    private Keycloak keycloakMock;
+
+    @Mock
+    private RealmResource realmResourceMock;
+
+    @Mock
+    private UsersResource usersResourceMock;
+
+    @Mock
+    private RolesResource rolesResourceMock;
+
+    @Mock
+    private TokenManager tokenManagerMock;
+
+    @Mock
+    private AccessTokenResponse accessTokenResponseMock;
+
+    @Captor
+    private ArgumentCaptor<User> userCaptor;
+
+    @Mock
+    private RoleRepresentation roleRepresentationMock;
 
     @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        // Create a mock of the service interface instead of using the real implementation
-        authService = mock(IUserAuthenticationService.class);
+    void setUp() throws Exception {
+        // Create real service instance
+        keycloakAuthService = new KeycloakAuthenticationService(userRepository);
+
+        // Set private fields
+        ReflectionTestUtils.setField(keycloakAuthService, "authServerUrl", "http://localhost:8080/auth");
+        ReflectionTestUtils.setField(keycloakAuthService, "realm", "test-realm");
+        ReflectionTestUtils.setField(keycloakAuthService, "clientId", "test-client");
+        ReflectionTestUtils.setField(keycloakAuthService, "clientSecret", "test-secret");
+
+        // Note: We removed general stubs, each test will define its own stubs
     }
 
     // Helper method to create a test user
@@ -55,264 +93,396 @@ class KeycloakAuthenticationServiceTest {
     }
 
     @Test
-    void registerUser_WithValidUser_ReturnsSuccess() {
+    void registerUser_Success() throws Exception {
         // Arrange
         User testUser = createTestUser();
-        User savedUser = createTestUser();
-        savedUser.setPassword(null);  // Password should be cleared in response
 
-        when(authService.registerUser(any(User.class))).thenReturn(ApiResponse.success(savedUser));
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub getKeycloakAdminInstance() method using doReturn
+        doReturn(keycloakMock).when(keycloakAuthService).getKeycloakAdminInstance();
+
+        // Mock Keycloak responses
+        when(keycloakMock.realm(anyString())).thenReturn(realmResourceMock);
+        when(realmResourceMock.users()).thenReturn(usersResourceMock);
+        when(usersResourceMock.search(anyString(), anyBoolean())).thenReturn(Collections.emptyList());
+
+        // Mock createUserWithDirectHttpCall method response
+        doAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setKeycloakId("user-123");
+            user.setEnabled(true);
+
+            User userCopy = new User();
+            userCopy.setId(user.getId());
+            userCopy.setUsername(user.getUsername());
+            userCopy.setEmail(user.getEmail());
+            userCopy.setName(user.getName());
+            userCopy.setSurname(user.getSurname());
+            userCopy.setRole(user.getRole());
+            userCopy.setKeycloakId(user.getKeycloakId());
+            userCopy.setEnabled(user.isEnabled());
+
+            return ApiResponse.success(userCopy);
+        }).when(keycloakAuthService).createUserWithDirectHttpCall(any(User.class), any(RealmResource.class));
+
+        // Mock database responses
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
 
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertTrue(response.isSuccess());
-        assertEquals(savedUser, response.getData());
-        assertNull(response.getData().getPassword());
-        verify(authService).registerUser(any(User.class));
     }
 
     @Test
-    void registerUser_WithExistingEmail_ReturnsError() {
+    void registerUser_UserAlreadyExists() {
         // Arrange
         User testUser = createTestUser();
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Email already exists", HttpStatus.CONFLICT.value())
-        );
+        List<UserRepresentation> existingUsers = new ArrayList<>();
+        UserRepresentation existingUser = new UserRepresentation();
+        existingUser.setUsername("testuser");
+        existingUsers.add(existingUser);
+
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub getKeycloakAdminInstance() method using doReturn
+        doReturn(keycloakMock).when(keycloakAuthService).getKeycloakAdminInstance();
+
+        // Mock Keycloak responses
+        when(keycloakMock.realm(anyString())).thenReturn(realmResourceMock);
+        when(realmResourceMock.users()).thenReturn(usersResourceMock);
+        when(usersResourceMock.search(eq("testuser"), anyBoolean())).thenReturn(existingUsers);
 
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertEquals(HttpStatus.CONFLICT.value(), response.getErrorCode());
+        assertTrue(response.getErrorMessages().get(0).contains("User already exists"));
+    }
+
+    @Test
+    void registerUser_EmailAlreadyExists() {
+        // Arrange
+        User testUser = createTestUser();
+
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub getKeycloakAdminInstance() method using doReturn
+        doReturn(keycloakMock).when(keycloakAuthService).getKeycloakAdminInstance();
+
+        // Mock Keycloak responses
+        when(keycloakMock.realm(anyString())).thenReturn(realmResourceMock);
+        when(realmResourceMock.users()).thenReturn(usersResourceMock);
+        when(usersResourceMock.search(anyString(), anyBoolean())).thenReturn(Collections.emptyList());
+
+        // Mock database responses
+        when(userRepository.findByEmail(eq("test@example.com"))).thenReturn(Optional.of(new User()));
+
+        // Act
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
         assertEquals(HttpStatus.CONFLICT.value(), response.getErrorCode());
         assertTrue(response.getErrorMessages().get(0).contains("Email already exists"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingUsername_ReturnsError() {
+    void registerUser_MissingUsername() {
         // Arrange
         User testUser = createTestUser();
         testUser.setUsername("");
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Username is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Username is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingEmail_ReturnsError() {
+    void registerUser_MissingEmail() {
         // Arrange
         User testUser = createTestUser();
         testUser.setEmail("");
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Email is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Email is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingPassword_ReturnsError() {
+    void registerUser_MissingPassword() {
         // Arrange
         User testUser = createTestUser();
         testUser.setPassword("");
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Password is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Password is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingName_ReturnsError() {
+    void registerUser_MissingName() {
         // Arrange
         User testUser = createTestUser();
         testUser.setName("");
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Name is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Name is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingSurname_ReturnsError() {
+    void registerUser_MissingSurname() {
         // Arrange
         User testUser = createTestUser();
         testUser.setSurname("");
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Surname is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Surname is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void registerUser_WithMissingRole_ReturnsError() {
+    void registerUser_MissingRole() {
         // Arrange
         User testUser = createTestUser();
         testUser.setRole(null);
 
-        when(authService.registerUser(testUser)).thenReturn(
-                ApiResponse.error("Role is required", HttpStatus.BAD_REQUEST.value())
-        );
-
         // Act
-        ApiResponse<User> response = authService.registerUser(testUser);
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Role is required"));
-        verify(authService).registerUser(testUser);
     }
 
     @Test
-    void authenticateUser_WithValidCredentials_ReturnsSuccess() {
+    void registerUser_KeycloakNull() {
         // Arrange
         User testUser = createTestUser();
-        Map<String, Object> responseData = Map.of(
-                "user", testUser,
-                "token", "test-token",
-                "expiresIn", 3600
-        );
 
-        when(authService.authenticateUser("testuser", "password123"))
-                .thenReturn(ApiResponse.success(responseData));
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub to return null for Keycloak
+        doReturn(null).when(keycloakAuthService).getKeycloakAdminInstance();
+
+        // Mock database responses
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
-        ApiResponse<Map<String, Object>> response = authService.authenticateUser("testuser", "password123");
+        ApiResponse<User> response = keycloakAuthService.registerUser(testUser);
 
         // Assert
         assertTrue(response.isSuccess());
         assertNotNull(response.getData());
-        assertEquals(testUser, response.getData().get("user"));
-        assertEquals("test-token", response.getData().get("token"));
-        verify(authService).authenticateUser("testuser", "password123");
+        assertEquals("testuser", response.getData().getUsername());
+        assertTrue(response.getData().isEnabled());
+
+        // Verify database save operation
+        verify(userRepository).save(userCaptor.capture());
+        User savedUser = userCaptor.getValue();
+        assertTrue(savedUser.isEnabled());
+        assertNull(savedUser.getKeycloakId()); // Keycloak ID should be null
     }
 
     @Test
-    void authenticateUser_WithNonexistentUser_ReturnsError() {
+    void authenticateUser_Success() {
         // Arrange
-        when(authService.authenticateUser("nonexistent", "password123"))
-                .thenReturn(ApiResponse.error("User not found", HttpStatus.NOT_FOUND.value()));
+        User testUser = createTestUser();
+
+        // Mock database responses
+        when(userRepository.findByUsername(eq("testuser"))).thenReturn(Optional.of(testUser));
+
+        // Mock Keycloak builder
+        try (MockedStatic<KeycloakBuilder> keycloakBuilderStatic = mockStatic(KeycloakBuilder.class)) {
+            KeycloakBuilder builderMock = mock(KeycloakBuilder.class);
+            keycloakBuilderStatic.when(KeycloakBuilder::builder).thenReturn(builderMock);
+            when(builderMock.serverUrl(anyString())).thenReturn(builderMock);
+            when(builderMock.realm(anyString())).thenReturn(builderMock);
+            when(builderMock.clientId(anyString())).thenReturn(builderMock);
+            when(builderMock.clientSecret(anyString())).thenReturn(builderMock);
+            when(builderMock.username(anyString())).thenReturn(builderMock);
+            when(builderMock.password(anyString())).thenReturn(builderMock);
+            when(builderMock.grantType(anyString())).thenReturn(builderMock);
+            when(builderMock.build()).thenReturn(keycloakMock);
+
+            // Mock token response
+            when(keycloakMock.tokenManager()).thenReturn(tokenManagerMock);
+            when(tokenManagerMock.getAccessToken()).thenReturn(accessTokenResponseMock);
+            when(accessTokenResponseMock.getToken()).thenReturn("test-token");
+            when(accessTokenResponseMock.getExpiresIn()).thenReturn(3600L);
+            when(accessTokenResponseMock.getRefreshToken()).thenReturn("refresh-token");
+            when(accessTokenResponseMock.getRefreshExpiresIn()).thenReturn(7200L);
+
+            // Act
+            ApiResponse<Map<String, Object>> response = keycloakAuthService.authenticateUser("testuser", "password123");
+
+            // Assert
+            assertTrue(response.isSuccess());
+            assertNotNull(response.getData());
+            assertEquals(testUser, response.getData().get("user"));
+            assertEquals("test-token", response.getData().get("token"));
+            assertEquals(3600L, response.getData().get("expiresIn"));
+            assertEquals("refresh-token", response.getData().get("refreshToken"));
+            assertEquals(7200L, response.getData().get("refreshExpiresIn"));
+        }
+    }
+
+    @Test
+    void authenticateUser_KeycloakFallback() {
+        // Arrange
+        User testUser = createTestUser();
+
+        // Mock database responses
+        when(userRepository.findByUsername(eq("testuser"))).thenReturn(Optional.of(testUser));
+
+        // Mock Keycloak builder
+        try (MockedStatic<KeycloakBuilder> keycloakBuilderStatic = mockStatic(KeycloakBuilder.class)) {
+            KeycloakBuilder builderMock = mock(KeycloakBuilder.class);
+            keycloakBuilderStatic.when(KeycloakBuilder::builder).thenReturn(builderMock);
+            when(builderMock.serverUrl(anyString())).thenReturn(builderMock);
+            when(builderMock.realm(anyString())).thenReturn(builderMock);
+            when(builderMock.clientId(anyString())).thenReturn(builderMock);
+            when(builderMock.clientSecret(anyString())).thenReturn(builderMock);
+            when(builderMock.username(anyString())).thenReturn(builderMock);
+            when(builderMock.password(anyString())).thenReturn(builderMock);
+            when(builderMock.grantType(anyString())).thenReturn(builderMock);
+            when(builderMock.build()).thenThrow(new RuntimeException("Keycloak connection error"));
+
+            // Act
+            ApiResponse<Map<String, Object>> response = keycloakAuthService.authenticateUser("testuser", "password123");
+
+            // Assert
+            assertTrue(response.isSuccess());
+            assertNotNull(response.getData());
+            assertEquals(testUser, response.getData().get("user"));
+            assertNotNull(response.getData().get("token"));
+            assertEquals(3600, response.getData().get("expiresIn"));
+        }
+    }
+
+    @Test
+    void authenticateUser_UserNotFound() {
+        // Arrange
+        // Mock database responses (no user found)
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        // Mock Keycloak builder
+        try (MockedStatic<KeycloakBuilder> keycloakBuilderStatic = mockStatic(KeycloakBuilder.class)) {
+            KeycloakBuilder builderMock = mock(KeycloakBuilder.class);
+            keycloakBuilderStatic.when(KeycloakBuilder::builder).thenReturn(builderMock);
+            when(builderMock.serverUrl(anyString())).thenReturn(builderMock);
+            when(builderMock.realm(anyString())).thenReturn(builderMock);
+            when(builderMock.clientId(anyString())).thenReturn(builderMock);
+            when(builderMock.clientSecret(anyString())).thenReturn(builderMock);
+            when(builderMock.username(anyString())).thenReturn(builderMock);
+            when(builderMock.password(anyString())).thenReturn(builderMock);
+            when(builderMock.grantType(anyString())).thenReturn(builderMock);
+            when(builderMock.build()).thenThrow(new RuntimeException("Keycloak connection error"));
+
+            // Act
+            ApiResponse<Map<String, Object>> response = keycloakAuthService.authenticateUser("nonexistent", "password123");
+
+            // Assert
+            assertFalse(response.isSuccess());
+            assertEquals(HttpStatus.NOT_FOUND.value(), response.getErrorCode());
+            assertTrue(response.getErrorMessages().get(0).contains("User not found"));
+        }
+    }
+
+    @Test
+    void getCurrentUser_Success() {
+        // Arrange
+        User testUser = createTestUser();
+        testUser.setPassword(null);
+        List<User> userList = Collections.singletonList(testUser);
+
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub getKeycloakInstance() method using doReturn (for mocking a private method for testing)
+        doReturn(keycloakMock).when(keycloakAuthService).getKeycloakInstance();
+
+        // Mock database responses
+        when(userRepository.findAll()).thenReturn(userList);
 
         // Act
-        ApiResponse<Map<String, Object>> response = authService.authenticateUser("nonexistent", "password123");
+        ApiResponse<User> response = keycloakAuthService.getCurrentUser("Bearer valid-token");
+
+        // Assert
+        assertTrue(response.isSuccess());
+        assertNotNull(response.getData());
+        assertEquals(testUser.getUsername(), response.getData().getUsername());
+        assertNull(response.getData().getPassword());
+    }
+
+    @Test
+    void getCurrentUser_EmptyToken() {
+        // Act
+        ApiResponse<User> response = keycloakAuthService.getCurrentUser("");
+
+        // Assert
+        assertFalse(response.isSuccess());
+        assertEquals(HttpStatus.UNAUTHORIZED.value(), response.getErrorCode());
+        assertTrue(response.getErrorMessages().get(0).contains("Authorization token is required"));
+    }
+
+    @Test
+    void getCurrentUser_NoUsersFound() {
+        // Arrange
+        // Create KeycloakAuthenticationService as spy
+        keycloakAuthService = spy(keycloakAuthService);
+
+        // Stub getKeycloakInstance() method using doReturn (for mocking a private method for testing)
+        doReturn(keycloakMock).when(keycloakAuthService).getKeycloakInstance();
+
+        // Mock database responses
+        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+
+        // Act
+        ApiResponse<User> response = keycloakAuthService.getCurrentUser("Bearer valid-token");
 
         // Assert
         assertFalse(response.isSuccess());
         assertEquals(HttpStatus.NOT_FOUND.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("User not found"));
-        verify(authService).authenticateUser("nonexistent", "password123");
+        assertTrue(response.getErrorMessages().get(0).contains("No users found"));
     }
 
     @Test
-    void getCurrentUser_WithValidToken_ReturnsSuccess() {
-        // Arrange
-        User testUser = createTestUser();
-        testUser.setPassword(null);
-
-        when(authService.getCurrentUser("Bearer valid-token"))
-                .thenReturn(ApiResponse.success(testUser));
-
+    void logoutUser_Success() {
         // Act
-        ApiResponse<User> response = authService.getCurrentUser("Bearer valid-token");
+        ApiResponse<Void> response = keycloakAuthService.logoutUser("Bearer valid-token");
 
         // Assert
         assertTrue(response.isSuccess());
-        assertEquals(testUser, response.getData());
-        assertNull(response.getData().getPassword());
-        verify(authService).getCurrentUser("Bearer valid-token");
     }
 
     @Test
-    void getCurrentUser_WithEmptyToken_ReturnsError() {
-        // Arrange
-        when(authService.getCurrentUser(""))
-                .thenReturn(ApiResponse.error("Authorization token is required", HttpStatus.UNAUTHORIZED.value()));
-
+    void logoutUser_EmptyToken() {
         // Act
-        ApiResponse<User> response = authService.getCurrentUser("");
+        ApiResponse<Void> response = keycloakAuthService.logoutUser("");
 
         // Assert
         assertFalse(response.isSuccess());
         assertEquals(HttpStatus.UNAUTHORIZED.value(), response.getErrorCode());
         assertTrue(response.getErrorMessages().get(0).contains("Authorization token is required"));
-        verify(authService).getCurrentUser("");
-    }
-
-    @Test
-    void logoutUser_WithValidToken_ReturnsSuccess() {
-        // Arrange
-        when(authService.logoutUser("Bearer valid-token"))
-                .thenReturn(ApiResponse.success(null));
-
-        // Act
-        ApiResponse<Void> response = authService.logoutUser("Bearer valid-token");
-
-        // Assert
-        assertTrue(response.isSuccess());
-        verify(authService).logoutUser("Bearer valid-token");
-    }
-
-    @Test
-    void logoutUser_WithEmptyToken_ReturnsError() {
-        // Arrange
-        when(authService.logoutUser(""))
-                .thenReturn(ApiResponse.error("Authorization token is required", HttpStatus.UNAUTHORIZED.value()));
-
-        // Act
-        ApiResponse<Void> response = authService.logoutUser("");
-
-        // Assert
-        assertFalse(response.isSuccess());
-        assertEquals(HttpStatus.UNAUTHORIZED.value(), response.getErrorCode());
-        assertTrue(response.getErrorMessages().get(0).contains("Authorization token is required"));
-        verify(authService).logoutUser("");
     }
 }

@@ -1,0 +1,94 @@
+server:
+  port: 8081
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: user-service
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/legalcase_users?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: legalcaseuser
+    password: legalcasepass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  # OAuth2 Resource Server Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}
+          jwk-set-uri: ${keycloak.auth-server-url}/realms/${keycloak.realm}/protocol/openid-connect/certs
+
+  # Flyway configuration
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+# Keycloak Configuration
+keycloak:
+  auth-server-url: http://localhost:8090
+  realm: legalcase
+  resource: legalcase-user-service
+  credentials:
+    secret: user-service-secret
+  use-resource-role-mappings: true
+  bearer-only: true
+  ssl-required: external
+  public-client: false
+  principal-attribute: preferred_username
+
+# API Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.springframework.security: DEBUG
+    com.legalcase.user: DEBUG
+    org.keycloak: DEBUG
+
+# Profile-specific configurations
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+keycloak:
+  auth-server-url: http://localhost:8090
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+keycloak:
+  auth-server-url: http://keycloak:8080 

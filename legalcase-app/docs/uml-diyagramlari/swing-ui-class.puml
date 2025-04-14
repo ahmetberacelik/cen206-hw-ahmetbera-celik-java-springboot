@@ -1,0 +1,566 @@
+@startuml Swing-UI-Class-Diagram
+
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EBF5FB
+  BorderColor #3498DB
+  ArrowColor #3498DB
+  FontName Arial
+}
+
+skinparam package {
+  BackgroundColor #E9F7EF
+  BorderColor #27AE60
+}
+
+' Ana Uygulama
+package "com.legalcase.ui" {
+  class LegalCaseUI {
+    - authService: AuthenticationService
+    - mainFrame: JFrame
+    + main(args: String[]): void
+    + initialize(): void
+    + showLoginScreen(): void
+    + showMainPanel(): void
+    + logout(): void
+  }
+}
+
+' Görünüm Katmanı (View)
+package "com.legalcase.ui.view" {
+  
+  package "common" {
+    abstract class BasePanel {
+      # controller: BaseController
+      + initialize(): void
+      # createComponents(): void
+      # layoutComponents(): void
+      # bindEvents(): void
+    }
+    
+    class StatusBar {
+      - statusLabel: JLabel
+      - progressBar: JProgressBar
+      + setStatus(message: String): void
+      + showProgress(show: boolean): void
+      + setProgress(value: int): void
+    }
+    
+    class NavigationPanel {
+      - menuButtons: List<JButton>
+      + addNavigationButton(text: String, icon: Icon, action: ActionListener): void
+    }
+  }
+  
+  package "auth" {
+    class LoginPanel {
+      - usernameField: JTextField
+      - passwordField: JPasswordField
+      - loginButton: JButton
+      - registerLink: JLabel
+      - forgotPasswordLink: JLabel
+      - authController: AuthController
+      + getUsername(): String
+      + getPassword(): char[]
+    }
+    
+    class RegisterPanel {
+      - firstNameField: JTextField
+      - lastNameField: JTextField
+      - emailField: JTextField
+      - usernameField: JTextField
+      - passwordField: JPasswordField
+      - confirmPasswordField: JPasswordField
+      - registerButton: JButton
+      - loginLink: JLabel
+      - authController: AuthController
+    }
+  }
+  
+  package "dashboard" {
+    class DashboardPanel {
+      - welcomeLabel: JLabel
+      - statisticsPanel: StatisticsPanel
+      - recentCasesPanel: RecentCasesPanel
+      - upcomingHearingsPanel: UpcomingHearingsPanel
+      - notificationsPanel: NotificationsPanel
+      - dashboardController: DashboardController
+    }
+    
+    class StatisticsPanel {
+      - activeCasesLabel: JLabel
+      - casesByStatusChart: JPanel
+      - dashboardController: DashboardController
+      + updateStatistics(stats: DashboardStatistics): void
+    }
+  }
+  
+  package "case" {
+    class CaseListPanel {
+      - caseTable: JTable
+      - caseTableModel: CaseTableModel
+      - searchField: JTextField
+      - filterComboBox: JComboBox
+      - addButton: JButton
+      - deleteButton: JButton
+      - editButton: JButton
+      - viewButton: JButton
+      - caseController: CaseController
+      + updateCaseList(cases: List<CaseDTO>): void
+      + getSelectedCase(): CaseDTO
+    }
+    
+    class CaseDetailPanel {
+      - titleField: JTextField
+      - descriptionTextArea: JTextArea
+      - clientComboBox: JComboBox
+      - statusComboBox: JComboBox
+      - assignedUserComboBox: JComboBox
+      - tabPane: JTabbedPane
+      - notesPanel: CaseNotesPanel
+      - hearingsPanel: CaseHearingsPanel
+      - documentsPanel: CaseDocumentsPanel
+      - saveButton: JButton
+      - caseController: CaseController
+      + setCaseData(caseDTO: CaseDTO): void
+      + getCaseData(): CaseDTO
+    }
+    
+    class CaseFormPanel {
+      - titleField: JTextField
+      - descriptionTextArea: JTextArea
+      - clientComboBox: JComboBox
+      - statusComboBox: JComboBox
+      - assignedUserComboBox: JComboBox
+      - saveButton: JButton
+      - cancelButton: JButton
+      - caseController: CaseController
+      + getFormData(): CreateCaseRequest
+      + setClients(clients: List<ClientDTO>): void
+      + setUsers(users: List<UserDTO>): void
+    }
+  }
+  
+  package "client" {
+    class ClientListPanel {
+      - clientTable: JTable
+      - clientTableModel: ClientTableModel
+      - searchField: JTextField
+      - addButton: JButton
+      - deleteButton: JButton
+      - editButton: JButton
+      - viewButton: JButton
+      - clientController: ClientController
+      + updateClientList(clients: List<ClientDTO>): void
+      + getSelectedClient(): ClientDTO
+    }
+    
+    class ClientDetailPanel {
+      - firstNameField: JTextField
+      - lastNameField: JTextField
+      - emailField: JTextField
+      - phoneField: JTextField
+      - addressPanel: AddressPanel
+      - casesPanel: ClientCasesPanel
+      - saveButton: JButton
+      - clientController: ClientController
+      + setClientData(clientDTO: ClientDTO): void
+      + getClientData(): ClientDTO
+    }
+    
+    class ClientFormPanel {
+      - firstNameField: JTextField
+      - lastNameField: JTextField
+      - emailField: JTextField
+      - phoneField: JTextField
+      - addressPanel: AddressPanel
+      - saveButton: JButton
+      - cancelButton: JButton
+      - clientController: ClientController
+      + getFormData(): CreateClientRequest
+    }
+  }
+  
+  package "document" {
+    class DocumentListPanel {
+      - documentTable: JTable
+      - documentTableModel: DocumentTableModel
+      - searchField: JTextField
+      - filterComboBox: JComboBox
+      - uploadButton: JButton
+      - deleteButton: JButton
+      - downloadButton: JButton
+      - viewButton: JButton
+      - documentController: DocumentController
+      + updateDocumentList(documents: List<DocumentDTO>): void
+      + getSelectedDocument(): DocumentDTO
+    }
+    
+    class DocumentUploadPanel {
+      - nameField: JTextField
+      - filePathField: JTextField
+      - browseButton: JButton
+      - categoryComboBox: JComboBox
+      - descriptionTextArea: JTextArea
+      - caseComboBox: JComboBox
+      - uploadButton: JButton
+      - cancelButton: JButton
+      - documentController: DocumentController
+      + getFormData(): DocumentUploadRequest
+      + setCases(cases: List<CaseDTO>): void
+    }
+  }
+  
+  package "hearing" {
+    class HearingListPanel {
+      - hearingTable: JTable
+      - hearingTableModel: HearingTableModel
+      - dateFilterField: JDatePicker
+      - addButton: JButton
+      - deleteButton: JButton
+      - editButton: JButton
+      - viewButton: JButton
+      - hearingController: HearingController
+      + updateHearingList(hearings: List<HearingDTO>): void
+      + getSelectedHearing(): HearingDTO
+    }
+    
+    class HearingDetailPanel {
+      - caseComboBox: JComboBox
+      - datePicker: JDatePicker
+      - timePicker: JSpinner
+      - locationField: JTextField
+      - judgeField: JTextField
+      - statusComboBox: JComboBox
+      - notesTextArea: JTextArea
+      - participantsPanel: HearingParticipantsPanel
+      - saveButton: JButton
+      - hearingController: HearingController
+      + setHearingData(hearingDTO: HearingDTO): void
+      + getHearingData(): HearingDTO
+      + setCases(cases: List<CaseDTO>): void
+    }
+  }
+}
+
+' Kontrol Katmanı (Controller)
+package "com.legalcase.ui.controller" {
+  abstract class BaseController {
+    # view: BasePanel
+    # applicationContext: ApplicationContext
+  }
+  
+  package "auth" {
+    class AuthController {
+      - authService: AuthenticationService
+      + login(username: String, password: char[]): void
+      + register(userData: RegisterRequest): void
+      + logout(): void
+      + resetPassword(email: String): void
+    }
+  }
+  
+  package "dashboard" {
+    class DashboardController {
+      - dashboardService: DashboardService
+      - caseService: CaseService
+      - hearingService: HearingService
+      - notificationService: NotificationService
+      + loadDashboardData(): void
+      + loadRecentCases(): void
+      + loadUpcomingHearings(): void
+      + loadNotifications(): void
+    }
+  }
+  
+  package "case" {
+    class CaseController {
+      - caseService: CaseService
+      - clientService: ClientService
+      - userService: UserService
+      + loadAllCases(): void
+      + loadCaseById(id: Long): void
+      + createCase(request: CreateCaseRequest): void
+      + updateCase(id: Long, request: UpdateCaseRequest): void
+      + deleteCase(id: Long): void
+      + loadCasesByClientId(clientId: Long): void
+      + loadClientOptions(): void
+      + loadUserOptions(): void
+    }
+  }
+  
+  package "client" {
+    class ClientController {
+      - clientService: ClientService
+      - caseService: CaseService
+      + loadAllClients(): void
+      + loadClientById(id: Long): void
+      + createClient(request: CreateClientRequest): void
+      + updateClient(id: Long, request: UpdateClientRequest): void
+      + deleteClient(id: Long): void
+      + loadClientCases(clientId: Long): void
+    }
+  }
+  
+  package "document" {
+    class DocumentController {
+      - documentService: DocumentService
+      - caseService: CaseService
+      + loadAllDocuments(): void
+      + loadDocumentById(id: Long): void
+      + uploadDocument(request: DocumentUploadRequest): void
+      + downloadDocument(id: Long): File
+      + deleteDocument(id: Long): void
+      + loadDocumentsByCaseId(caseId: Long): void
+      + loadCaseOptions(): void
+    }
+  }
+  
+  package "hearing" {
+    class HearingController {
+      - hearingService: HearingService
+      - caseService: CaseService
+      - userService: UserService
+      - clientService: ClientService
+      + loadAllHearings(): void
+      + loadHearingById(id: Long): void
+      + createHearing(request: CreateHearingRequest): void
+      + updateHearing(id: Long, request: UpdateHearingRequest): void
+      + deleteHearing(id: Long): void
+      + loadHearingsByCaseId(caseId: Long): void
+      + loadUpcomingHearings(): void
+      + loadCaseOptions(): void
+    }
+  }
+}
+
+' Model Katmanı
+package "com.legalcase.ui.model" {
+  class CaseTableModel {
+    - cases: List<CaseDTO>
+    + getRowCount(): int
+    + getColumnCount(): int
+    + getValueAt(row: int, col: int): Object
+    + getColumnName(col: int): String
+    + setCases(cases: List<CaseDTO>): void
+  }
+  
+  class ClientTableModel {
+    - clients: List<ClientDTO>
+    + getRowCount(): int
+    + getColumnCount(): int
+    + getValueAt(row: int, col: int): Object
+    + getColumnName(col: int): String
+    + setClients(clients: List<ClientDTO>): void
+  }
+  
+  class DocumentTableModel {
+    - documents: List<DocumentDTO>
+    + getRowCount(): int
+    + getColumnCount(): int
+    + getValueAt(row: int, col: int): Object
+    + getColumnName(col: int): String
+    + setDocuments(documents: List<DocumentDTO>): void
+  }
+  
+  class HearingTableModel {
+    - hearings: List<HearingDTO>
+    + getRowCount(): int
+    + getColumnCount(): int
+    + getValueAt(row: int, col: int): Object
+    + getColumnName(col: int): String
+    + setHearings(hearings: List<HearingDTO>): void
+  }
+}
+
+' Servis Katmanı (Backend API İletişimi)
+package "com.legalcase.ui.application.service" {
+  
+  interface RestClient {
+    + get(url: String, responseType: Class<T>): T
+    + post(url: String, request: Object, responseType: Class<T>): T
+    + put(url: String, request: Object, responseType: Class<T>): T
+    + delete(url: String): void
+  }
+  
+  class RestClientImpl {
+    - baseUrl: String
+    - authService: AuthenticationService
+    - objectMapper: ObjectMapper
+    + get(url: String, responseType: Class<T>): T
+    + post(url: String, request: Object, responseType: Class<T>): T
+    + put(url: String, request: Object, responseType: Class<T>): T
+    + delete(url: String): void
+    - addAuthHeader(request: HttpRequest): void
+    - handleResponse(response: HttpResponse<String>, responseType: Class<T>): T
+  }
+  
+  interface AuthenticationService {
+    + login(username: String, password: char[]): AuthResponse
+    + logout(): void
+    + isAuthenticated(): boolean
+    + getToken(): String
+    + refreshToken(): String
+    + getAuthenticatedUser(): UserDTO
+  }
+  
+  class AuthenticationServiceImpl {
+    - restClient: RestClient
+    - authToken: String
+    - refreshToken: String
+    - authenticatedUser: UserDTO
+    + login(username: String, password: char[]): AuthResponse
+    + logout(): void
+    + isAuthenticated(): boolean
+    + getToken(): String
+    + refreshToken(): String
+    + getAuthenticatedUser(): UserDTO
+  }
+  
+  interface CaseService {
+    + getAllCases(): List<CaseDTO>
+    + getCaseById(id: Long): CaseDTO
+    + createCase(request: CreateCaseRequest): CaseDTO
+    + updateCase(id: Long, request: UpdateCaseRequest): CaseDTO
+    + deleteCase(id: Long): void
+    + getCasesByClientId(clientId: Long): List<CaseDTO>
+  }
+  
+  class CaseServiceImpl {
+    - restClient: RestClient
+    + getAllCases(): List<CaseDTO>
+    + getCaseById(id: Long): CaseDTO
+    + createCase(request: CreateCaseRequest): CaseDTO
+    + updateCase(id: Long, request: UpdateCaseRequest): CaseDTO
+    + deleteCase(id: Long): void
+    + getCasesByClientId(clientId: Long): List<CaseDTO>
+  }
+  
+  interface ClientService {
+    + getAllClients(): List<ClientDTO>
+    + getClientById(id: Long): ClientDTO
+    + createClient(request: CreateClientRequest): ClientDTO
+    + updateClient(id: Long, request: UpdateClientRequest): ClientDTO
+    + deleteClient(id: Long): void
+  }
+  
+  class ClientServiceImpl {
+    - restClient: RestClient
+    + getAllClients(): List<ClientDTO>
+    + getClientById(id: Long): ClientDTO
+    + createClient(request: CreateClientRequest): ClientDTO
+    + updateClient(id: Long, request: UpdateClientRequest): ClientDTO
+    + deleteClient(id: Long): void
+  }
+  
+  interface DocumentService {
+    + getAllDocuments(): List<DocumentDTO>
+    + getDocumentById(id: Long): DocumentDTO
+    + uploadDocument(request: DocumentUploadRequest): DocumentDTO
+    + downloadDocument(id: Long): byte[]
+    + deleteDocument(id: Long): void
+    + getDocumentsByCaseId(caseId: Long): List<DocumentDTO>
+  }
+  
+  class DocumentServiceImpl {
+    - restClient: RestClient
+    + getAllDocuments(): List<DocumentDTO>
+    + getDocumentById(id: Long): DocumentDTO
+    + uploadDocument(request: DocumentUploadRequest): DocumentDTO
+    + downloadDocument(id: Long): byte[]
+    + deleteDocument(id: Long): void
+    + getDocumentsByCaseId(caseId: Long): List<DocumentDTO>
+  }
+  
+  interface HearingService {
+    + getAllHearings(): List<HearingDTO>
+    + getHearingById(id: Long): HearingDTO
+    + createHearing(request: CreateHearingRequest): HearingDTO
+    + updateHearing(id: Long, request: UpdateHearingRequest): HearingDTO
+    + deleteHearing(id: Long): void
+    + getHearingsByCaseId(caseId: Long): List<HearingDTO>
+    + getUpcomingHearings(): List<HearingDTO>
+  }
+  
+  class HearingServiceImpl {
+    - restClient: RestClient
+    + getAllHearings(): List<HearingDTO>
+    + getHearingById(id: Long): HearingDTO
+    + createHearing(request: CreateHearingRequest): HearingDTO
+    + updateHearing(id: Long, request: UpdateHearingRequest): HearingDTO
+    + deleteHearing(id: Long): void
+    + getHearingsByCaseId(caseId: Long): List<HearingDTO>
+    + getUpcomingHearings(): List<HearingDTO>
+  }
+}
+
+' İlişkiler
+
+' Ana Uygulama
+LegalCaseUI --> AuthenticationService
+LegalCaseUI --> LoginPanel
+LegalCaseUI --> DashboardPanel
+
+' Base sınıflar arası ilişkiler
+BasePanel <|-- LoginPanel
+BasePanel <|-- RegisterPanel
+BasePanel <|-- DashboardPanel
+BasePanel <|-- CaseListPanel
+BasePanel <|-- CaseDetailPanel
+BasePanel <|-- ClientListPanel
+BasePanel <|-- ClientDetailPanel
+BasePanel <|-- DocumentListPanel
+BasePanel <|-- HearingListPanel
+
+BaseController <|-- AuthController
+BaseController <|-- DashboardController
+BaseController <|-- CaseController
+BaseController <|-- ClientController
+BaseController <|-- DocumentController
+BaseController <|-- HearingController
+
+' View -> Controller ilişkileri
+LoginPanel --> AuthController
+RegisterPanel --> AuthController
+DashboardPanel --> DashboardController
+CaseListPanel --> CaseController
+CaseDetailPanel --> CaseController
+CaseFormPanel --> CaseController
+ClientListPanel --> ClientController
+ClientDetailPanel --> ClientController
+ClientFormPanel --> ClientController
+DocumentListPanel --> DocumentController
+DocumentUploadPanel --> DocumentController
+HearingListPanel --> HearingController
+HearingDetailPanel --> HearingController
+
+' Controller -> Service ilişkileri
+AuthController --> AuthenticationService
+DashboardController --> CaseService
+DashboardController --> HearingService
+CaseController --> CaseService
+CaseController --> ClientService
+CaseController --> UserServiceImpl
+ClientController --> ClientService
+ClientController --> CaseService
+DocumentController --> DocumentService
+DocumentController --> CaseService
+HearingController --> HearingService
+HearingController --> CaseService
+
+' Servis implementasyonları
+CaseServiceImpl ..|> CaseService
+ClientServiceImpl ..|> ClientService
+DocumentServiceImpl ..|> DocumentService
+HearingServiceImpl ..|> HearingService
+AuthenticationServiceImpl ..|> AuthenticationService
+RestClientImpl ..|> RestClient
+
+' Model ilişkileri
+CaseListPanel --> CaseTableModel
+ClientListPanel --> ClientTableModel
+DocumentListPanel --> DocumentTableModel
+HearingListPanel --> HearingTableModel
+
+@enduml 

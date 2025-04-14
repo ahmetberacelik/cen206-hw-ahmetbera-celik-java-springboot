@@ -5,23 +5,22 @@ services:
   mysql:
     image: mysql:8.0
     container_name: legalcase-mysql
+    command: --default-authentication-plugin=mysql_native_password
     ports:
       - "3307:3306"  # Host port 3307'yi container port 3306'ya yönlendirin
     environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: legalcasedb
       MYSQL_USER: legalcaseuser
       MYSQL_PASSWORD: legalcasepass
-      MYSQL_ROOT_PASSWORD: rootpassword
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
-      - ./src/main/resources/db/init-data.sql:/docker-entrypoint-initdb.d/2-init-data.sql
-      - ./docker/mysql/init-keycloak-db.sql:/docker-entrypoint-initdb.d/3-init-keycloak-db.sql
+      - ./docker/mysql/init-keycloak-db.sql:/docker-entrypoint-initdb.d/init-keycloak-db.sql
     networks:
       - legalcase-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "legalcaseuser", "-plegalcasepass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -68,6 +67,50 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # API Gateway Service
+  gateway:
+    build:
+      context: ./legalcase-gateway
+      dockerfile: Dockerfile
+    container_name: legalcase-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/legalcase
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
+    networks:
+      - legalcase-network
+    depends_on:
+      - keycloak
+      - user-service
+    restart: unless-stopped
+
+  # User Service
+  user-service:
+    build:
+      context: ./legalcase-user-service
+      dockerfile: Dockerfile
+    container_name: legalcase-user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legalcase_users?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: legalcaseuser
+      SPRING_DATASOURCE_PASSWORD: legalcasepass
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: legalcase
+      KEYCLOAK_RESOURCE: legalcase-user-service
+      KEYCLOAK_CREDENTIALS_SECRET: user-service-secret
+      KEYCLOAK_PUBLIC_CLIENT: "false"
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - legalcase-network
+    depends_on:
+      - mysql
+      - keycloak
+    restart: unless-stopped
+
   # Legal Case Tracker Application
   app:
     build:
@@ -92,6 +135,7 @@ services:
     depends_on:
       - mysql
       - keycloak
+      - user-service
     restart: unless-stopped
 
 # Networks

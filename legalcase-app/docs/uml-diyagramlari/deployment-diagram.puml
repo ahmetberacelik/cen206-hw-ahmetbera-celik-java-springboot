@@ -1,0 +1,145 @@
+@startuml Deployment-Diagram
+
+skinparam backgroundColor white
+skinparam nodeFontName Arial
+skinparam nodeFontSize 14
+skinparam nodeBackgroundColor #EBF5FB
+skinparam nodeBorderColor #3498DB
+
+skinparam databaseBackgroundColor #FDEDEC
+skinparam databaseBorderColor #E74C3C
+
+skinparam cloudBackgroundColor #E9F7EF
+skinparam cloudBorderColor #27AE60
+
+skinparam rectangleBackgroundColor white
+skinparam rectangleBorderColor #7F8C8D
+
+' Azure Cloud
+cloud "Azure Cloud" {
+  rectangle "Virtual Network" {
+    ' Load Balancer
+    node "Azure Load Balancer" as LoadBalancer {
+      component "Traffic Manager"
+    }
+    
+    ' Application Tier VMs
+    node "API Gateway VM" as GatewayVM {
+      component "API Gateway (Spring Cloud)" as Gateway {
+        [Gateway Service]
+        [Auth Filter]
+        [Logging Filter]
+        [Rate Limiter]
+      }
+    }
+    
+    node "Microservices VM Cluster" as AppVM {
+      component "Application Container Service" {
+        [User Service]
+        [Client Service]
+        [Case Service]
+        [Document Service]
+        [Hearing Service]
+        [Notification Service]
+      }
+    }
+    
+    ' Authentication
+    node "Identity Provider VM" as KeycloakVM {
+      component "Keycloak" {
+        [Authentication Server]
+        [User Federation]
+        [Admin Console]
+      }
+    }
+    
+    ' Database Tier
+    node "Database VM Cluster" as DBVM {
+      database "MySQL Cluster" {
+        database "User DB" as UserDB
+        database "Client DB" as ClientDB
+        database "Case DB" as CaseDB
+        database "Document DB" as DocumentDB
+        database "Hearing DB" as HearingDB
+        database "Notification DB" as NotificationDB
+        database "Keycloak DB" as KeycloakDB
+      }
+    }
+    
+    ' Monitoring
+    node "Monitoring VM" as MonitoringVM {
+      component "Monitoring Stack" {
+        [Prometheus]
+        [Grafana]
+        [Loki]
+        [Alert Manager]
+      }
+    }
+    
+    ' Storage
+    database "Azure Blob Storage" as BlobStorage {
+      [Document Content]
+      [Backup Data]
+    }
+  }
+}
+
+' Client
+node "Client Machine" as ClientMachine {
+  component "LegalCase GUI" {
+    [Swing UI Application]
+  }
+}
+
+' Mobile (Future)
+node "Mobile Device" as MobileDevice {
+  component "LegalCase Mobile App" {
+    [Mobile UI]
+  }
+}
+
+' CI/CD
+cloud "DevOps" {
+  node "GitHub" {
+    component "GitHub Actions" {
+      [CI/CD Pipeline]
+      [Code Quality]
+      [Security Scan]
+    }
+  }
+  
+  node "Docker Hub" {
+    component "Container Registry" {
+      [Docker Images]
+    }
+  }
+}
+
+' Connections
+ClientMachine --> LoadBalancer : HTTPS
+MobileDevice --> LoadBalancer : HTTPS
+
+LoadBalancer --> GatewayVM : HTTP
+
+GatewayVM --> AppVM : HTTP
+GatewayVM --> KeycloakVM : HTTP/OAuth2
+GatewayVM ..> MonitoringVM : Log/Metrics
+
+AppVM --> DBVM : JDBC
+AppVM --> BlobStorage : HTTPS
+AppVM ..> MonitoringVM : Log/Metrics
+
+KeycloakVM --> DBVM : JDBC
+KeycloakVM ..> MonitoringVM : Log/Metrics
+
+' DevOps Connections
+Gateway ..> [Docker Images] : pull
+[User Service] ..> [Docker Images] : pull
+[Client Service] ..> [Docker Images] : pull
+[Case Service] ..> [Docker Images] : pull
+[Document Service] ..> [Docker Images] : pull
+[Hearing Service] ..> [Docker Images] : pull
+[Notification Service] ..> [Docker Images] : pull
+[CI/CD Pipeline] --> [Docker Images] : push
+
+@enduml 

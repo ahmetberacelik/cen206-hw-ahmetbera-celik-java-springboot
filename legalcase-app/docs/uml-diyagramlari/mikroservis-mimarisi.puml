@@ -1,0 +1,109 @@
+@startuml Mikroservis-Mimarisi
+
+' Stil tanımlamaları
+skinparam backgroundColor white
+skinparam componentStyle uml2
+skinparam component {
+  FontSize 14
+  FontName Arial
+  BorderColor #3498DB
+  BackgroundColor #EBF5FB
+  ArrowColor #3498DB
+}
+
+skinparam database {
+  BorderColor #E74C3C
+  BackgroundColor #FDEDEC
+}
+
+skinparam frame {
+  BorderColor #27AE60
+  BackgroundColor #E9F7EF
+}
+
+' Mikroservis mimarisinin temel bileşenleri
+frame "Client Applications" {
+  [Swing UI Application] as SwingUI
+  [Mobile App (Future)] as MobileApp
+}
+
+frame "API Layer" {
+  [API Gateway] as Gateway
+  
+  Gateway -[hidden]- MobileApp
+}
+
+frame "Microservices" {
+  component [User Service] as UserService
+  component [Client Service] as ClientService
+  component [Case Service] as CaseService
+  component [Document Service] as DocumentService
+  component [Hearing Service] as HearingService
+  component [Notification Service] as NotificationService
+}
+
+frame "Databases" {
+  database "User DB" as UserDB
+  database "Client DB" as ClientDB
+  database "Case DB" as CaseDB
+  database "Document DB" as DocumentDB
+  database "Hearing DB" as HearingDB
+  database "Notification DB" as NotificationDB
+}
+
+frame "Authentication" {
+  [Keycloak] as Keycloak
+  database "Keycloak DB" as KeycloakDB
+}
+
+frame "Monitoring & Logging" {
+  [Prometheus] as Prometheus
+  [Grafana] as Grafana
+  [Loki] as Loki
+}
+
+' İlişkileri tanımlama
+SwingUI --> Gateway
+MobileApp --> Gateway
+
+Gateway --> UserService
+Gateway --> ClientService
+Gateway --> CaseService
+Gateway --> DocumentService
+Gateway --> HearingService
+Gateway --> NotificationService
+Gateway --> Keycloak
+
+UserService --> UserDB
+ClientService --> ClientDB
+CaseService --> CaseDB
+DocumentService --> DocumentDB
+HearingService --> HearingDB
+NotificationService --> NotificationDB
+
+Keycloak --> KeycloakDB
+
+' Servisler arası ilişkiler
+UserService <--> ClientService
+ClientService <--> CaseService
+CaseService <--> DocumentService
+CaseService <--> HearingService
+HearingService <--> NotificationService
+
+' Monitoring ilişkileri
+Prometheus <-- UserService
+Prometheus <-- ClientService
+Prometheus <-- CaseService
+Prometheus <-- DocumentService
+Prometheus <-- HearingService
+Prometheus <-- NotificationService
+Prometheus <-- Keycloak
+Grafana <-- Prometheus
+Loki <-- UserService
+Loki <-- ClientService
+Loki <-- CaseService
+Loki <-- DocumentService
+Loki <-- HearingService
+Loki <-- NotificationService
+
+@enduml 

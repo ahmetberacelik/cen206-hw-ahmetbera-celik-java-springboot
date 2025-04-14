@@ -1,0 +1,266 @@
+@startuml Case-Service-Classes
+
+skinparam backgroundColor white
+skinparam classAttributeIconSize 0
+skinparam class {
+  BackgroundColor #EBF5FB
+  BorderColor #3498DB
+  ArrowColor #3498DB
+  FontName Arial
+}
+
+skinparam package {
+  BackgroundColor #E9F7EF
+  BorderColor #27AE60
+}
+
+' API Katmanı
+package "com.legalcase.case.api" {
+  package "controller" {
+    class CaseController {
+      + getAllCases(): ResponseEntity<List<CaseResponse>>
+      + getCaseById(id: Long): ResponseEntity<CaseResponse>
+      + createCase(request: CreateCaseRequest): ResponseEntity<CaseResponse>
+      + updateCase(id: Long, request: UpdateCaseRequest): ResponseEntity<CaseResponse>
+      + deleteCase(id: Long): ResponseEntity<Void>
+      + getCasesByClientId(clientId: Long): ResponseEntity<List<CaseResponse>>
+    }
+  }
+  
+  package "request" {
+    class CreateCaseRequest {
+      - title: String
+      - description: String
+      - clientId: Long
+      - assignedUserId: Long
+    }
+    
+    class UpdateCaseRequest {
+      - title: String
+      - description: String
+      - status: String
+      - assignedUserId: Long
+      - closeDate: LocalDate
+    }
+  }
+  
+  package "response" {
+    class CaseResponse {
+      - id: Long
+      - caseNumber: String
+      - title: String
+      - description: String
+      - status: String
+      - openDate: LocalDate
+      - closeDate: LocalDate
+      - clientId: Long
+      - clientName: String
+      - assignedUserId: Long
+      - assignedUserName: String
+    }
+    
+    class CaseListResponse {
+      - cases: List<CaseResponse>
+      - totalCount: Long
+    }
+  }
+  
+  package "advice" {
+    class GlobalExceptionHandler {
+      + handleCaseNotFoundException(ex: CaseNotFoundException): ResponseEntity<ErrorResponse>
+      + handleValidationException(ex: MethodArgumentNotValidException): ResponseEntity<ValidationErrorResponse>
+      + handleGenericException(ex: Exception): ResponseEntity<ErrorResponse>
+    }
+  }
+}
+
+' Uygulama Katmanı 
+package "com.legalcase.case.application" {
+  package "service" {
+    interface CaseService {
+      + getAllCases(): List<CaseDTO>
+      + getCaseById(id: Long): CaseDTO
+      + createCase(caseDTO: CaseDTO): CaseDTO
+      + updateCase(id: Long, caseDTO: CaseDTO): CaseDTO
+      + deleteCase(id: Long): void
+      + getCasesByClientId(clientId: Long): List<CaseDTO>
+    }
+    
+    class CaseServiceImpl {
+      - caseRepository: CaseRepository
+      - clientServiceClient: ClientServiceClient
+      - userServiceClient: UserServiceClient
+      - caseMapper: CaseMapper
+      + getAllCases(): List<CaseDTO>
+      + getCaseById(id: Long): CaseDTO
+      + createCase(caseDTO: CaseDTO): CaseDTO
+      + updateCase(id: Long, caseDTO: CaseDTO): CaseDTO
+      + deleteCase(id: Long): void
+      + getCasesByClientId(clientId: Long): List<CaseDTO>
+    }
+  }
+  
+  package "mapper" {
+    class CaseMapper {
+      + toDTO(case: Case): CaseDTO
+      + toEntity(caseDTO: CaseDTO): Case
+      + toResponse(caseDTO: CaseDTO): CaseResponse
+      + toListResponse(caseDTOs: List<CaseDTO>): CaseListResponse
+    }
+  }
+  
+  package "dto" {
+    class CaseDTO {
+      - id: Long
+      - caseNumber: String
+      - title: String
+      - description: String
+      - status: CaseStatus
+      - openDate: LocalDate
+      - closeDate: LocalDate
+      - clientId: Long
+      - clientName: String
+      - assignedUserId: Long
+      - assignedUserName: String
+    }
+  }
+  
+  package "exception" {
+    class CaseNotFoundException {
+      + CaseNotFoundException(id: Long)
+      + CaseNotFoundException(message: String)
+    }
+    
+    class CaseValidationException {
+      + CaseValidationException(message: String)
+    }
+  }
+}
+
+' Domain Katmanı
+package "com.legalcase.case.domain" {
+  package "entity" {
+    class Case {
+      - id: Long
+      - caseNumber: String
+      - title: String
+      - description: String
+      - status: CaseStatus
+      - openDate: LocalDate
+      - closeDate: LocalDate
+      - clientId: Long
+      - assignedUserId: Long
+      - createdAt: LocalDateTime
+      - updatedAt: LocalDateTime
+      + updateDetails(title: String, description: String)
+      + assignUser(userId: Long)
+      + updateStatus(status: CaseStatus)
+      + close(closeDate: LocalDate)
+    }
+  }
+  
+  package "valueobject" {
+    enum CaseStatus {
+      OPEN
+      IN_PROGRESS
+      ON_HOLD
+      CLOSED
+      ARCHIVED
+    }
+  }
+  
+  package "repository" {
+    interface CaseRepository {
+      + findByCaseNumber(caseNumber: String): Optional<Case>
+      + findByClientId(clientId: Long): List<Case>
+      + findByAssignedUserId(userId: Long): List<Case>
+      + findByStatus(status: CaseStatus): List<Case>
+    }
+  }
+  
+  package "event" {
+    class CaseCreatedEvent {
+      - caseId: Long
+      - clientId: Long
+      - assignedUserId: Long
+      - timestamp: LocalDateTime
+    }
+    
+    class CaseStatusChangedEvent {
+      - caseId: Long
+      - oldStatus: CaseStatus
+      - newStatus: CaseStatus
+      - timestamp: LocalDateTime
+    }
+  }
+}
+
+' Altyapı Katmanı
+package "com.legalcase.case.infrastructure" {
+  package "repository" {
+    class CaseRepositoryImpl {
+      + findByCaseNumber(caseNumber: String): Optional<Case>
+      + findByClientId(clientId: Long): List<Case>
+      + findByAssignedUserId(userId: Long): List<Case>
+      + findByStatus(status: CaseStatus): List<Case>
+    }
+  }
+  
+  package "client" {
+    interface ClientServiceClient {
+      + getClientById(clientId: Long): ClientDTO
+    }
+    
+    interface UserServiceClient {
+      + getUserById(userId: Long): UserDTO
+    }
+  }
+  
+  package "config" {
+    class JpaConfig {
+      + caseRepositoryImpl(): CaseRepositoryImpl
+    }
+    
+    class SecurityConfig {
+      + securityFilterChain(http: HttpSecurity): SecurityFilterChain
+    }
+    
+    class MessageConfig {
+      + caseCreatedEventChannel(): MessageChannel
+      + caseStatusChangedEventChannel(): MessageChannel
+    }
+  }
+}
+
+' İlişkileri tanımlama
+CaseController --> CaseService
+CaseController ..> CreateCaseRequest
+CaseController ..> UpdateCaseRequest
+CaseController ..> CaseResponse
+CaseController ..> CaseListResponse
+
+CaseServiceImpl ..|> CaseService
+CaseServiceImpl --> CaseRepository
+CaseServiceImpl --> ClientServiceClient
+CaseServiceImpl --> UserServiceClient
+CaseServiceImpl --> CaseMapper
+
+CaseMapper ..> CaseDTO
+CaseMapper ..> Case
+CaseMapper ..> CaseResponse
+CaseMapper ..> CaseListResponse
+
+CaseRepositoryImpl ..|> CaseRepository
+
+CaseService ..> CaseDTO
+CaseService ..> CaseNotFoundException
+CaseService ..> CaseValidationException
+
+CaseRepository ..> Case
+CaseRepository ..> CaseStatus
+
+Case --> CaseStatus
+Case ..> CaseCreatedEvent
+Case ..> CaseStatusChangedEvent
+
+@enduml 

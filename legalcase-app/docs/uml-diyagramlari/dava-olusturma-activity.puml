@@ -1,0 +1,78 @@
+@startuml Dava-Olusturma-Activity
+
+skinparam backgroundColor white
+skinparam activityBackgroundColor #EBF5FB
+skinparam activityBorderColor #3498DB
+skinparam activityDiamondBackgroundColor #FDEDEC
+skinparam activityDiamondBorderColor #E74C3C
+skinparam activityStartColor #27AE60
+skinparam activityEndColor #E74C3C
+skinparam arrowColor #3498DB
+skinparam activityFontName Arial
+
+start
+
+:Avukat arayüzde "Yeni Dava Oluştur" düğmesine tıklar;
+
+:Dava oluşturma formunu görüntüler;
+
+:Dava başlığını girer;
+:Dava açıklamasını girer;
+
+:Müvekkil arama/seçme alanına tıklar;
+
+partition "Müvekkil Seçme İşlemi" {
+  :Mevcut müvekkilleri listeler;
+  
+  if (Müvekkil listede var mı?) then (Evet)
+    :Listeden müvekkil seçer;
+  else (Hayır)
+    :Yeni müvekkil oluştur düğmesine tıklar;
+    :Müvekkil oluşturma formunu doldurur;
+    :Müvekkil bilgilerini kaydeder;
+    :Yeni oluşturulan müvekkili seçer;
+  endif
+}
+
+:Sorumlu avukat atar (varsayılan: kendisi);
+
+:Dava tipini seçer;
+
+:Dava başlangıç tarihini belirler;
+
+:İlgili mahkeme bilgilerini girer;
+
+:Form bilgilerini doğrular;
+
+if (Form bilgileri geçerli mi?) then (Evet)
+  :Dava oluştur düğmesine tıklar;
+  
+  partition "Sunucu Tarafı İşlem" {
+    :"Dava Servisi"ne istek gönderilir;
+    :Dava numarası otomatik oluşturulur;
+    :Dava veritabanına kaydedilir;
+    
+    fork
+      :Müvekkil servisine bilgi gönderilir;
+    fork again
+      :Belge yönetimi için klasör yapısı oluşturulur;
+    fork again
+      :Bildirim servisi ile ilgili kişilere bildirim gönderilir;
+    end fork
+    
+    :Dava bilgileriyle birlikte başarı yanıtı döndürülür;
+  }
+  
+  :Dava detay ekranı görüntülenir;
+  :Dava numarası ve diğer detaylar gösterilir;
+  :Sonraki adımlar için seçenekler sunulur;
+  
+else (Hayır)
+  :Hatalı alanları işaretler;
+  :Hata mesajlarını görüntüler;
+  :Kullanıcıdan düzeltme yapmasını ister;
+endif
+
+stop
+
+@enduml 

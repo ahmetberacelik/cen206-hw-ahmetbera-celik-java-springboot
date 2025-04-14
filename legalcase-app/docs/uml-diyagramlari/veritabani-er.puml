@@ -1,0 +1,258 @@
+@startuml Veritabani-ER-Diagram
+
+!define Table(name,desc) class name as "desc" << (T,#FFAAAA) >>
+!define FK(x) <color:#aaaaaa><&key></color> x
+!define PK(x) <b><color:#aaaaaa><&key></color> x</b>
+
+skinparam class {
+  BackgroundColor #F5F5F5
+  BorderColor #888888
+  BorderThickness 1
+  ArrowColor #888888
+  FontSize 12
+  FontName Arial
+}
+
+' User Tables
+package "User Database" {
+  Table(users, "users") {
+    PK(id) : BIGINT
+    --
+    username : VARCHAR(50)
+    password : VARCHAR(200)
+    email : VARCHAR(100)
+    first_name : VARCHAR(50)
+    last_name : VARCHAR(50)
+    status : ENUM
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+  
+  Table(roles, "roles") {
+    PK(id) : BIGINT
+    --
+    name : VARCHAR(50)
+    description : TEXT
+  }
+  
+  Table(user_roles, "user_roles") {
+    PK(user_id) : BIGINT
+    PK(role_id) : BIGINT
+  }
+}
+
+' Client Tables
+package "Client Database" {
+  Table(clients, "clients") {
+    PK(id) : BIGINT
+    --
+    first_name : VARCHAR(50)
+    last_name : VARCHAR(50)
+    email : VARCHAR(100)
+    phone : VARCHAR(20)
+    notes : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+  
+  Table(addresses, "addresses") {
+    PK(id) : BIGINT
+    --
+    FK(client_id) : BIGINT
+    street : VARCHAR(100)
+    city : VARCHAR(50)
+    state : VARCHAR(50)
+    zip_code : VARCHAR(20)
+    country : VARCHAR(50)
+  }
+}
+
+' Case Tables
+package "Case Database" {
+  Table(cases, "cases") {
+    PK(id) : BIGINT
+    --
+    case_number : VARCHAR(50)
+    title : VARCHAR(100)
+    description : TEXT
+    status : ENUM
+    open_date : DATE
+    close_date : DATE
+    FK(client_id) : BIGINT
+    FK(assigned_user_id) : BIGINT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+  
+  Table(case_notes, "case_notes") {
+    PK(id) : BIGINT
+    --
+    FK(case_id) : BIGINT
+    note : TEXT
+    FK(created_by) : BIGINT
+    created_at : TIMESTAMP
+  }
+  
+  Table(case_types, "case_types") {
+    PK(id) : BIGINT
+    --
+    name : VARCHAR(50)
+    description : TEXT
+  }
+  
+  Table(case_tags, "case_tags") {
+    PK(id) : BIGINT
+    --
+    name : VARCHAR(50)
+  }
+  
+  Table(case_tag_mapping, "case_tag_mapping") {
+    PK(case_id) : BIGINT
+    PK(tag_id) : BIGINT
+  }
+  
+  Table(courts, "courts") {
+    PK(id) : BIGINT
+    --
+    name : VARCHAR(100)
+    address : TEXT
+    jurisdiction : VARCHAR(50)
+  }
+  
+  Table(case_courts, "case_courts") {
+    PK(id) : BIGINT
+    --
+    FK(case_id) : BIGINT
+    FK(court_id) : BIGINT
+    reference_number : VARCHAR(50)
+  }
+}
+
+' Document Tables
+package "Document Database" {
+  Table(documents, "documents") {
+    PK(id) : BIGINT
+    --
+    FK(case_id) : BIGINT
+    name : VARCHAR(100)
+    type : VARCHAR(50)
+    size : BIGINT
+    upload_date : TIMESTAMP
+    content_type : VARCHAR(50)
+    category : ENUM
+    content : BLOB
+    FK(created_by) : BIGINT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+  
+  Table(document_versions, "document_versions") {
+    PK(id) : BIGINT
+    --
+    FK(document_id) : BIGINT
+    version : INT
+    content : BLOB
+    change_notes : TEXT
+    FK(created_by) : BIGINT
+    created_at : TIMESTAMP
+  }
+}
+
+' Hearing Tables
+package "Hearing Database" {
+  Table(hearings, "hearings") {
+    PK(id) : BIGINT
+    --
+    FK(case_id) : BIGINT
+    date : DATE
+    time : TIME
+    location : VARCHAR(100)
+    judge : VARCHAR(100)
+    notes : TEXT
+    status : ENUM
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+  }
+  
+  Table(hearing_participants, "hearing_participants") {
+    PK(id) : BIGINT
+    --
+    FK(hearing_id) : BIGINT
+    participant_type : ENUM
+    FK(participant_id) : BIGINT
+    notes : TEXT
+  }
+  
+  Table(hearing_reminders, "hearing_reminders") {
+    PK(id) : BIGINT
+    --
+    FK(hearing_id) : BIGINT
+    reminder_time : TIMESTAMP
+    status : ENUM
+    created_at : TIMESTAMP
+  }
+}
+
+' Notification Tables
+package "Notification Database" {
+  Table(notifications, "notifications") {
+    PK(id) : BIGINT
+    --
+    FK(user_id) : BIGINT
+    title : VARCHAR(100)
+    message : TEXT
+    type : ENUM
+    read : BOOLEAN
+    related_entity_type : VARCHAR(50)
+    related_entity_id : BIGINT
+    created_at : TIMESTAMP
+  }
+  
+  Table(notification_preferences, "notification_preferences") {
+    PK(id) : BIGINT
+    --
+    FK(user_id) : BIGINT
+    notification_type : ENUM
+    email : BOOLEAN
+    push : BOOLEAN
+    in_app : BOOLEAN
+    sms : BOOLEAN
+  }
+}
+
+' İlişkiler
+
+' User Relations
+users "1" -- "N" user_roles
+roles "1" -- "N" user_roles
+
+' Client Relations
+clients "1" -- "N" addresses
+
+' Case Relations
+cases "N" -- "1" clients
+cases "N" -- "1" users
+case_notes "N" -- "1" cases
+case_notes "N" -- "1" users
+cases "N" -- "1" case_types
+case_tag_mapping "N" -- "1" cases
+case_tag_mapping "N" -- "1" case_tags
+case_courts "N" -- "1" cases
+case_courts "N" -- "1" courts
+
+' Document Relations
+documents "N" -- "1" cases
+documents "N" -- "1" users
+document_versions "N" -- "1" documents
+document_versions "N" -- "1" users
+
+' Hearing Relations
+hearings "N" -- "1" cases
+hearing_participants "N" -- "1" hearings
+hearing_reminders "N" -- "1" hearings
+
+' Notification Relations
+notifications "N" -- "1" users
+notification_preferences "N" -- "1" users
+
+@enduml 

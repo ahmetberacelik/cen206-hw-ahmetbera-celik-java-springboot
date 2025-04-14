@@ -1,0 +1,63 @@
+server:
+  port: 8000
+
+spring:
+  application:
+    name: legalcase-gateway
+  
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8090/realms/legalcase
+          jwk-set-uri: http://localhost:8090/realms/legalcase/protocol/openid-connect/certs
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    com.legalcase.gateway: DEBUG
+
+# Spring Cloud Gateway Configuration
+spring.cloud.gateway:
+  httpclient:
+    connect-timeout: 1000
+    response-timeout: 5s
+
+# Profile-specific configurations
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8090/realms/legalcase
+          jwk-set-uri: http://localhost:8090/realms/legalcase/protocol/openid-connect/certs
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/legalcase
+          jwk-set-uri: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs 

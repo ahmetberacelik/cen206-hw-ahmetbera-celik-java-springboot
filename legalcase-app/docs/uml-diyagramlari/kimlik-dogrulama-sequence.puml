@@ -1,0 +1,127 @@
+@startuml Kimlik-Dogrulama-Sequence
+
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceGroupBackgroundColor #F5F5F5
+skinparam sequenceGroupBorderColor #AAAAAA
+skinparam sequenceLifeLineBorderColor #3498DB
+skinparam sequenceParticipantBackgroundColor #EBF5FB
+skinparam sequenceParticipantBorderColor #3498DB
+skinparam sequenceBoxBackgroundColor #E9F7EF
+skinparam sequenceBoxBorderColor #27AE60
+
+actor User as user
+participant "Swing UI" as ui
+participant "API Gateway" as gateway
+participant "Keycloak" as keycloak
+participant "User Service" as userService
+participant "Case Service" as caseService
+
+== Kullanıcı Girişi ==
+
+user -> ui: Kullanıcı adı ve şifre girer
+activate ui
+
+ui -> gateway: POST /auth/login
+activate gateway
+
+gateway -> keycloak: Token isteği (OAuth2)
+activate keycloak
+keycloak -> keycloak: Kimlik doğrulama
+keycloak --> gateway: Access token, Refresh token
+deactivate keycloak
+
+gateway --> ui: JWT token yanıtı
+deactivate gateway
+
+ui --> user: Ana sayfaya yönlendirilir
+deactivate ui
+
+== Yetkilendirilmiş API İsteği ==
+
+user -> ui: Dava listesini görüntülemek ister
+activate ui
+
+ui -> gateway: GET /cases (Authorization: Bearer token)
+activate gateway
+
+gateway -> keycloak: Token doğrulama
+activate keycloak
+keycloak --> gateway: Token geçerli (kullanıcı rolleri)
+deactivate keycloak
+
+gateway -> caseService: GET /cases
+activate caseService
+caseService -> userService: Kullanıcı bilgilerini sorgula
+activate userService
+userService --> caseService: Kullanıcı detayları
+deactivate userService
+caseService --> gateway: Dava listesi
+deactivate caseService
+
+gateway --> ui: Dava listesi yanıtı
+deactivate gateway
+
+ui --> user: Dava listesi görüntülenir
+deactivate ui
+
+== Token Yenileme ==
+
+user -> ui: Uzun süre sonra işlem yapar
+activate ui
+
+ui -> gateway: GET /cases (Authorization: Bearer token)
+activate gateway
+
+gateway -> keycloak: Token doğrulama
+activate keycloak
+keycloak --> gateway: Token süresi dolmuş
+deactivate keycloak
+
+gateway --> ui: 401 Unauthorized
+deactivate gateway
+
+ui -> gateway: POST /auth/refresh (Refresh token)
+activate gateway
+
+gateway -> keycloak: Refresh token isteği
+activate keycloak
+keycloak --> gateway: Yeni access token
+deactivate keycloak
+
+gateway --> ui: Yeni JWT token
+deactivate gateway
+
+ui -> gateway: GET /cases (Authorization: Bearer yeni token)
+activate gateway
+gateway -> caseService: GET /cases
+activate caseService
+caseService --> gateway: Dava listesi
+deactivate caseService
+gateway --> ui: Dava listesi yanıtı
+deactivate gateway
+
+ui --> user: Dava listesi görüntülenir
+deactivate ui
+
+== Çıkış Yapma ==
+
+user -> ui: Çıkış yapmak ister
+activate ui
+
+ui -> gateway: POST /auth/logout
+activate gateway
+
+gateway -> keycloak: Oturum sonlandırma
+activate keycloak
+keycloak --> gateway: Oturum sonlandırıldı
+deactivate keycloak
+
+gateway --> ui: Çıkış başarılı
+deactivate gateway
+
+ui -> ui: Token ve oturum bilgilerini temizle
+ui --> user: Giriş sayfasına yönlendirilir
+deactivate ui
+
+@enduml 

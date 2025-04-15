@@ -49,6 +49,7 @@
         <module>legalcase-gateway</module>
         <module>legalcase-user-service</module>
         <module>legalcase-case-service</module>
+        <module>legalcase-hearing-service</module>
     </modules>
 
     <!-- Spring Boot Parent -->

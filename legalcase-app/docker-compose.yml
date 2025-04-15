@@ -164,6 +164,25 @@ services:
       - case-service
     restart: unless-stopped
 
+  hearing-service:
+    container_name: legalcase-hearing-service
+    build:
+      context: ./legalcase-hearing-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - MYSQL_USER=legalcaseuser
+      - MYSQL_PASSWORD=legalcasepass
+    depends_on:
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - legalcase-network
+
 # Networks
 networks:
   legalcase-network:

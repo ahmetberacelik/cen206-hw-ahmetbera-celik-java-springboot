@@ -48,6 +48,7 @@
         <module>legalcase-app-monolith</module>
         <module>legalcase-gateway</module>
         <module>legalcase-user-service</module>
+        <module>legalcase-case-service</module>
     </modules>
 
     <!-- Spring Boot Parent -->

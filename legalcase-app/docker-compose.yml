@@ -84,6 +84,7 @@ services:
     depends_on:
       - keycloak
       - user-service
+      - case-service
     restart: unless-stopped
 
   # User Service
@@ -103,6 +104,30 @@ services:
       KEYCLOAK_RESOURCE: legalcase-user-service
       KEYCLOAK_CREDENTIALS_SECRET: user-service-secret
       KEYCLOAK_PUBLIC_CLIENT: "false"
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - legalcase-network
+    depends_on:
+      - mysql
+      - keycloak
+    restart: unless-stopped
+    
+  # Case Service
+  case-service:
+    build:
+      context: ./legalcase-case-service
+      dockerfile: Dockerfile
+    container_name: legalcase-case-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legalcase_cases?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: legalcaseuser
+      SPRING_DATASOURCE_PASSWORD: legalcasepass
+      SERVER_PORT: 8082
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/legalcase
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
       SPRING_PROFILES_ACTIVE: prod
     networks:
       - legalcase-network
@@ -136,6 +161,7 @@ services:
       - mysql
       - keycloak
       - user-service
+      - case-service
     restart: unless-stopped
 
 # Networks

@@ -45,13 +45,19 @@ management:
     env:
       enabled: true
 
+# Swagger/OpenAPI Yapılandırması
 springdoc:
-  api-docs:
-    path: /api/v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
-    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    try-it-out-enabled: true
+  api-docs:
+    path: /v3/api-docs
   packages-to-scan: com.legalcase.hearingservice.api.controller
+  pathsToMatch: /api/v1/**
 
 logging:
   level:

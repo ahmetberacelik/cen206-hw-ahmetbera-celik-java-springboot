@@ -15,7 +15,7 @@ spring:
   
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
@@ -32,6 +32,13 @@ spring:
         jwt:
           issuer-uri: http://keycloak:8080/realms/legalcase
           jwk-set-uri: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
+
+# Diğer servislere bağlantı ayarları
+services:
+  case-service:
+    url: http://legalcase-case-service:8082
+  user-service:
+    url: http://legalcase-user-service:8081
 
 management:
   endpoints:

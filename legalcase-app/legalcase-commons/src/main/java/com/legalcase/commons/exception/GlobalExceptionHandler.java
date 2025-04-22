@@ -10,6 +10,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.context.request.WebRequest;
 
 import jakarta.persistence.EntityNotFoundException;
 import java.util.HashMap;
@@ -20,49 +22,80 @@ import java.util.Map;
  */
 @RestControllerAdvice
 @Slf4j
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends BaseExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
-        log.error("Business exception: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(ResourceNotFoundException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(ValidationException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleServiceUnavailableException(ServiceUnavailableException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(AuthorizationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuthorizationException(AuthorizationException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEntityNotFoundException(EntityNotFoundException ex) {
-        log.error("Entity not found: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error("Resource not found: " + ex.getMessage());
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    public ResponseEntity<ApiResponse<Void>> handleEntityNotFoundException(EntityNotFoundException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.NOT_FOUND, "Resource not found: " + ex.getMessage(), request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex) {
-        log.error("Access denied: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error("Access denied");
-        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.FORBIDDEN, "Access denied", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message("Validation failed")
+                .path(getPath(request))
+                .build();
+        
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
+            errorResponse.addValidationError(fieldName, errorMessage);
         });
         
-        log.error("Validation error: {}", errors);
-        ApiResponse<Map<String, String>> response = ApiResponse.error("Validation failed");
-        response.setData(errors);
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        log.error("Validation error: {}", errorResponse.getValidationErrors());
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRestClientException(RestClientException ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.BAD_GATEWAY, "Service communication error", request);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
-        log.error("Unexpected error occurred", ex);
-        ApiResponse<Void> response = ApiResponse.error("An unexpected error occurred");
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex, WebRequest request) {
+        return createErrorResponse(ex, HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
+    }
+    
+    /**
+     * Get the request path
+     */
+    private String getPath(WebRequest request) {
+        try {
+            return ((org.springframework.web.context.request.ServletWebRequest) request).getRequest().getRequestURI();
+        } catch (Exception ex) {
+            return "unknown";
+        }
     }
 } 

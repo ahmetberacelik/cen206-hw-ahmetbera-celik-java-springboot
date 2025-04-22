@@ -1,8 +1,8 @@
 package com.legalcase.caseservice.application.service;
 
+import com.legalcase.commons.exception.ResourceNotFoundException;
+import com.legalcase.commons.exception.ValidationException;
 import com.legalcase.caseservice.application.dto.CaseDTO;
-import com.legalcase.caseservice.application.exception.CaseNotFoundException;
-import com.legalcase.caseservice.application.exception.CaseValidationException;
 import com.legalcase.caseservice.application.mapper.CaseMapper;
 import com.legalcase.caseservice.domain.entity.Case;
 import com.legalcase.caseservice.domain.repository.CaseRepository;
@@ -114,7 +114,7 @@ public class CaseServiceImpl implements CaseService {
         
         // Verify case exists
         if (!caseRepository.existsById(id)) {
-            throw new CaseNotFoundException(id);
+            throw new ResourceNotFoundException(Case.class, id);
         }
         
         caseRepository.deleteById(id);
@@ -136,11 +136,11 @@ public class CaseServiceImpl implements CaseService {
      * 
      * @param id the case ID
      * @return the found case entity
-     * @throws CaseNotFoundException if case not found
+     * @throws ResourceNotFoundException if case not found
      */
     private Case findCaseById(Long id) {
         return caseRepository.findById(id)
-                .orElseThrow(() -> new CaseNotFoundException(id));
+                .orElseThrow(() -> new ResourceNotFoundException(Case.class, id));
     }
     
     /**
@@ -154,4 +154,4 @@ public class CaseServiceImpl implements CaseService {
         int year = LocalDate.now().getYear();
         return String.format("CASE-%d-%s", year, randomPart);
     }
-} 
+}

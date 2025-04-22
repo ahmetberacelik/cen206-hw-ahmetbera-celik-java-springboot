@@ -1,12 +1,14 @@
 package com.legalcase.hearingservice.application.service;
 
+import com.legalcase.commons.exception.ResourceNotFoundException;
+import com.legalcase.commons.exception.ServiceUnavailableException;
+import com.legalcase.commons.exception.ValidationException;
 import com.legalcase.hearingservice.application.dto.HearingDTO;
-import com.legalcase.hearingservice.application.exception.HearingNotFoundException;
-import com.legalcase.hearingservice.application.exception.HearingValidationException;
 import com.legalcase.hearingservice.application.mapper.HearingMapper;
 import com.legalcase.hearingservice.domain.entity.Hearing;
 import com.legalcase.hearingservice.domain.repository.HearingRepository;
 import com.legalcase.hearingservice.domain.valueobject.HearingStatus;
+import com.legalcase.hearingservice.infrastructure.client.CaseServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class HearingServiceImpl implements HearingService {
 
     private final HearingRepository hearingRepository;
     private final HearingMapper hearingMapper;
+    private final CaseServiceClient caseServiceClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,6 +54,16 @@ public class HearingServiceImpl implements HearingService {
         log.debug("Creating new hearing with title: {}", hearingDTO.getTitle());
         
         validateHearingData(hearingDTO);
+        
+        try {
+            // Verify that the case exists
+            if (!caseServiceClient.caseExists(hearingDTO.getCaseId())) {
+                throw new ValidationException("caseId", "Case with ID " + hearingDTO.getCaseId() + " does not exist");
+            }
+        } catch (ServiceUnavailableException e) {
+            // Handle service unavailable exception, perhaps by implementing a fallback
+            log.warn("Case service unavailable when creating hearing. Proceeding without case validation.");
+        }
         
         // Set default status if not provided
         if (hearingDTO.getStatus() == null) {
@@ -124,7 +137,7 @@ public class HearingServiceImpl implements HearingService {
         log.debug("Deleting hearing with id: {}", id);
         
         if (!hearingRepository.existsById(id)) {
-            throw new HearingNotFoundException(id);
+            throw new ResourceNotFoundException(Hearing.class, id);
         }
         
         hearingRepository.deleteById(id);
@@ -134,6 +147,17 @@ public class HearingServiceImpl implements HearingService {
     @Transactional(readOnly = true)
     public List<HearingDTO> getHearingsByCaseId(Long caseId) {
         log.debug("Getting hearings for case id: {}", caseId);
+        
+        try {
+            // Verify that the case exists before returning hearings
+            if (!caseServiceClient.caseExists(caseId)) {
+                log.warn("Attempted to get hearings for non-existent case with ID: {}", caseId);
+                return List.of(); // Return empty list instead of throwing exception
+            }
+        } catch (ServiceUnavailableException e) {
+            // Handle service unavailable exception with a fallback
+            log.warn("Case service unavailable when fetching hearings by case ID. Proceeding with local data only.");
+        }
         
         return hearingRepository.findByCaseId(caseId)
                 .stream()
@@ -194,34 +218,34 @@ public class HearingServiceImpl implements HearingService {
      * 
      * @param id the hearing ID
      * @return the found hearing entity
-     * @throws HearingNotFoundException if hearing not found
+     * @throws ResourceNotFoundException if hearing not found
      */
     private Hearing findHearingById(Long id) {
         return hearingRepository.findById(id)
-                .orElseThrow(() -> new HearingNotFoundException(id));
+                .orElseThrow(() -> new ResourceNotFoundException(Hearing.class, id));
     }
     
     /**
      * Validate hearing data.
      * 
      * @param hearingDTO the hearing data to validate
-     * @throws HearingValidationException if validation fails
+     * @throws ValidationException if validation fails
      */
     private void validateHearingData(HearingDTO hearingDTO) {
         if (hearingDTO.getCaseId() == null) {
-            throw new HearingValidationException("Case ID is required");
+            throw new ValidationException("caseId", "Case ID is required");
         }
         
         if (hearingDTO.getTitle() == null || hearingDTO.getTitle().trim().isEmpty()) {
-            throw new HearingValidationException("Title is required");
+            throw new ValidationException("title", "Title is required");
         }
         
         if (hearingDTO.getScheduledDate() == null) {
-            throw new HearingValidationException("Scheduled date is required");
+            throw new ValidationException("scheduledDate", "Scheduled date is required");
         }
         
         if (hearingDTO.getLocation() == null || hearingDTO.getLocation().trim().isEmpty()) {
-            throw new HearingValidationException("Location is required");
+            throw new ValidationException("location", "Location is required");
         }
     }
-} 
+}

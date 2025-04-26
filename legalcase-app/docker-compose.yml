@@ -24,6 +24,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # phpMyAdmin for Database Management (Optional)
   phpmyadmin:
@@ -38,7 +39,8 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   # Keycloak Identity Provider
@@ -82,10 +84,10 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - keycloak
-      - user-service
-      - case-service
-      - client-service
+      keycloak:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   # User Service
@@ -109,8 +111,10 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - mysql
-      - keycloak
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
     
   # Case Service
@@ -133,8 +137,10 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - mysql
-      - keycloak
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
 
   # Client Service
@@ -157,8 +163,10 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - mysql
-      - keycloak
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
 
   # Legal Case Tracker Application
@@ -183,11 +191,10 @@ services:
     networks:
       - legalcase-network
     depends_on:
-      - mysql
-      - keycloak
-      - user-service
-      - case-service
-      - client-service
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
     restart: unless-stopped
 
   hearing-service:

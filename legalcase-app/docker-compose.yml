@@ -15,7 +15,7 @@ services:
       MYSQL_PASSWORD: legalcasepass
     volumes:
       - mysql-data:/var/lib/mysql
-      - ./docker/mysql/init-keycloak-db.sql:/docker-entrypoint-initdb.d/init-keycloak-db.sql
+      - ./docker/mysql/init-services.sql:/docker-entrypoint-initdb.d/init-services.sql
     networks:
       - legalcase-network
     restart: unless-stopped
@@ -85,6 +85,7 @@ services:
       - keycloak
       - user-service
       - case-service
+      - client-service
     restart: unless-stopped
 
   # User Service
@@ -136,6 +137,30 @@ services:
       - keycloak
     restart: unless-stopped
 
+  # Client Service
+  client-service:
+    build:
+      context: ./
+      dockerfile: legalcase-client-service/Dockerfile
+    container_name: legalcase-client-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legalcase_clients?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: legalcaseuser
+      SPRING_DATASOURCE_PASSWORD: legalcasepass
+      SERVER_PORT: 8083
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/legalcase
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
+      SPRING_PROFILES_ACTIVE: prod
+    networks:
+      - legalcase-network
+    depends_on:
+      - mysql
+      - keycloak
+    restart: unless-stopped
+
   # Legal Case Tracker Application
   app:
     build:
@@ -162,6 +187,7 @@ services:
       - keycloak
       - user-service
       - case-service
+      - client-service
     restart: unless-stopped
 
   hearing-service:
@@ -170,11 +196,14 @@ services:
       context: ./legalcase-hearing-service
       dockerfile: Dockerfile
     ports:
-      - "8083:8083"
+      - "8084:8083"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - MYSQL_USER=legalcaseuser
       - MYSQL_PASSWORD=legalcasepass
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/legalcase_hearings?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/legalcase
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
     depends_on:
       mysql:
         condition: service_healthy

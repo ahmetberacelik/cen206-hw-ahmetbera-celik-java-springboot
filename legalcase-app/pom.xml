@@ -50,6 +50,7 @@
         <module>legalcase-user-service</module>
         <module>legalcase-case-service</module>
         <module>legalcase-hearing-service</module>
+        <module>legalcase-client-service</module>
     </modules>
 
     <!-- Spring Boot Parent -->

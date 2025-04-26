@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: legalcase-client-service
+    
+  datasource:
+    url: jdbc:mysql://localhost:3308/legalcase_client_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: legalcase_client_user
+    password: legalcase_client_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8090/realms/legalcase
+          jwk-set-uri: http://keycloak:8090/realms/legalcase/protocol/openid-connect/certs
+
+server:
+  port: 8083
+  servlet:
+    context-path: /api
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    
+logging:
+  level:
+    org.springframework: INFO
+    org.springframework.security: DEBUG
+    com.legalcase.client: DEBUG
+    org.hibernate.SQL: DEBUG
+    
+# Profil ayarları
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://localhost:3308/legalcase_client_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8090/realms/legalcase
+          jwk-set-uri: http://localhost:8090/realms/legalcase/protocol/openid-connect/certs
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:mysql://mysql:3306/legalcase_client_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+    username: legalcaseuser
+    password: legalcasepass
+  jpa:
+    show-sql: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/legalcase
+          jwk-set-uri: http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/legalcase_client_db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${MYSQL_USER:legalcaseuser}
+    password: ${MYSQL_PASSWORD:legalcasepass}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI:http://keycloak:8080/realms/legalcase}
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI:http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs}
+  jpa:
+    hibernate:
+      ddl-auto: validate

@@ -203,7 +203,7 @@ services:
       context: ./legalcase-hearing-service
       dockerfile: Dockerfile
     ports:
-      - "8084:8083"
+      - "8084:8084"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - MYSQL_USER=legalcaseuser
@@ -211,6 +211,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/legalcase_hearings?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/legalcase
       - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/legalcase/protocol/openid-connect/certs
+      - SERVER_PORT=8084
     depends_on:
       mysql:
         condition: service_healthy

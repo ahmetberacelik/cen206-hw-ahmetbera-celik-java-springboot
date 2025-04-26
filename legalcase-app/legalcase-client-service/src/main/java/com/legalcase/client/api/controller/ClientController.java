@@ -4,6 +4,9 @@ import com.legalcase.client.api.dto.request.ClientRequest;
 import com.legalcase.client.api.dto.response.ClientResponse;
 import com.legalcase.client.application.service.ClientService;
 import com.legalcase.commons.dto.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -18,6 +21,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/clients")
 @RequiredArgsConstructor
+@Tag(name = "Clients", description = "Client management API")
+@SecurityRequirement(name = "bearerAuth")
 public class ClientController {
     
     private static final Logger logger = LoggerFactory.getLogger(ClientController.class);
@@ -26,6 +31,7 @@ public class ClientController {
     
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'LAWYER')")
+    @Operation(summary = "Create a new client", description = "Creates a new client with the provided information. Requires ADMIN or LAWYER role.")
     public ResponseEntity<ApiResponse<ClientResponse>> createClient(@Valid @RequestBody ClientRequest request) {
         logger.info("REST request to create new client");
         ClientResponse response = clientService.createClient(request);
@@ -35,6 +41,7 @@ public class ClientController {
     
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'LAWYER', 'ASSISTANT')")
+    @Operation(summary = "Get client by ID", description = "Retrieves a client by their ID. Requires ADMIN, LAWYER or ASSISTANT role.")
     public ResponseEntity<ApiResponse<ClientResponse>> getClientById(@PathVariable Long id) {
         logger.info("REST request to get client by id: {}", id);
         ClientResponse response = clientService.getClientById(id);
@@ -43,6 +50,11 @@ public class ClientController {
     
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'LAWYER', 'ASSISTANT')")
+    @Operation(
+        summary = "Get all clients",
+        description = "Retrieves all clients from the system. Requires ADMIN, LAWYER or ASSISTANT role.",
+        security = {@SecurityRequirement(name = "bearerAuth")}
+    )
     public ResponseEntity<ApiResponse<List<ClientResponse>>> getAllClients() {
         logger.info("REST request to get all clients");
         List<ClientResponse> response = clientService.getAllClients();

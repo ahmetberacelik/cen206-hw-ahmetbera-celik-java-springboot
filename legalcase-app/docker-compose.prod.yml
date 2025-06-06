@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # LegalCase Application Service (Production)
+  app:
+    container_name: legalcase-app
+    image: legalcase-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/legalcasedb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_SECRET: ${KEYCLOAK_SECRET}
+    networks:
+      - legalcase-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    restart: unless-stopped
+
+  # Override MySQL for Production
+  mysql:
+    environment:
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USER}", "-p${DB_PASSWORD}"]
+
+  # Override phpMyAdmin for Production (if needed, or can be removed)
+  phpmyadmin:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+  # Override Keycloak for Production
+  keycloak:
+    command: 
+      - "start"
+    environment:
+      KC_DB: mysql
+      KC_DB_URL_HOST: mysql
+      KC_DB_DATABASE: keycloak
+      KC_DB_USERNAME: ${DB_USER}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_HOSTNAME: localhost # IMPORTANT: Change this to your domain in production
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_ENABLED: 'true'
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    image: nginx:latest
+    container_name: legalcase-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - legalcase-network
+    depends_on:
+      - app
+      - keycloak
+    restart: unless-stopped 

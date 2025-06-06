@@ -68,32 +68,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Legal Case Tracker Application
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: legalcase-app
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/legalcasedb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: legalcaseuser
-      SPRING_DATASOURCE_PASSWORD: legalcasepass
-      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
-      KEYCLOAK_REALM: legalcase
-      KEYCLOAK_RESOURCE: legalcase-app
-      KEYCLOAK_CREDENTIALS_SECRET: legalcase-secret
-      KEYCLOAK_PUBLIC_CLIENT: "false"
-      AUTH_PROVIDER: keycloak
-      SPRING_PROFILES_ACTIVE: prod
-    networks:
-      - legalcase-network
-    depends_on:
-      - mysql
-      - keycloak
-    restart: unless-stopped
-
 # Networks
 networks:
   legalcase-network:

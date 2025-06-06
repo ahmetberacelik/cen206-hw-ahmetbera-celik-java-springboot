@@ -2,6 +2,7 @@ spring:
   application:
     name: legal-case-tracker
 
+  # Default profile settings, typically for local development
   datasource:
     url: jdbc:mysql://localhost:3307/legalcasedb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
     username: legalcaseuser
@@ -68,5 +69,15 @@ spring:
   config:
     activate:
       on-profile: prod
+  # Production profile settings
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate # Use 'validate' or 'none' in production
 keycloak:
-  auth-server-url: http://keycloak:8080
+  auth-server-url: ${KEYCLOAK_URL}
+  credentials:
+    secret: ${KEYCLOAK_SECRET}

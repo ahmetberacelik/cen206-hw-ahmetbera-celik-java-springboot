@@ -76,7 +76,7 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: validate # Use 'validate' or 'none' in production
+      ddl-auto: update
 keycloak:
   auth-server-url: ${KEYCLOAK_URL}
   credentials:

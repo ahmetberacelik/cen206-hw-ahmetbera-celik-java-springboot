@@ -50,7 +50,8 @@ services:
       KC_DB_DATABASE: keycloak
       KC_DB_USERNAME: ${DB_USER}
       KC_DB_PASSWORD: ${DB_PASSWORD}
-      KC_HOSTNAME: localhost # IMPORTANT: Change this to your domain in production
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_PROXY: passthrough
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HTTP_ENABLED: 'true'
